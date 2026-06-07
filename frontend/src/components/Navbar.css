@@ -1,0 +1,114 @@
+.navbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  background: rgba(249, 249, 249, 0.9);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(192, 200, 196, 0.3);
+  transition: box-shadow 0.3s;
+}
+.navbar--scrolled {
+  box-shadow: 0px 2px 12px rgba(21,69,57,0.07);
+}
+.navbar__inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  position: relative;
+}
+.navbar__brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--primary);
+  font-weight: 700;
+  text-decoration: none;
+  z-index: 2;
+}
+.navbar__logo { height: 32px; width: auto; }
+.navbar__brand-name { color: var(--primary); }
+
+/* Centered desktop links */
+.navbar__links {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 40px;
+}
+.navbar__link {
+  color: var(--on-surface-variant);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  transition: color 0.2s;
+  padding-bottom: 4px;
+  border-bottom: 2px solid transparent;
+  text-decoration: none;
+}
+.navbar__link:hover { color: var(--primary); }
+.navbar__link--active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+/* Right actions */
+.navbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  z-index: 2;
+}
+
+/* Mobile about icon - hidden on desktop */
+.navbar__about-mobile {
+  display: none;
+  color: var(--on-surface-variant);
+  font-size: 20px;
+  transition: color 0.2s;
+}
+.navbar__about-mobile:hover { color: var(--primary); }
+
+/* Desktop heart icon */
+.navbar__heart-desktop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  color: var(--primary);
+  transition: opacity 0.2s;
+  text-decoration: none;
+}
+.navbar__heart-desktop:hover { opacity: 0.7; }
+.navbar__heart-desktop .material-symbols-outlined { font-size: 24px; }
+
+.navbar__badge {
+  position: absolute;
+  top: -8px;
+  right: -10px;
+  background: var(--primary);
+  color: white;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .navbar { height: 60px; }
+  .navbar__links { display: none !important; }
+  .navbar__about-mobile { display: flex; }
+  .navbar__heart-desktop { display: none !important; }
+  .navbar__brand-name { font-size: 14px; }
+  .navbar__logo { height: 28px; }
+}

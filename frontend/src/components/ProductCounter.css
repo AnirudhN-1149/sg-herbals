@@ -1,0 +1,99 @@
+/* ── Add Button ── */
+.pc-add-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 16px;
+  border-radius: 20px;
+  border: 1.5px solid var(--primary);
+  background: transparent;
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.pc-add-btn:hover {
+  background: var(--primary);
+  color: white;
+}
+.pc-add-btn--large {
+  width: 100%;
+  padding: 14px 24px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+.pc-add-btn--large:hover {
+  opacity: 0.9;
+}
+
+/* ── Counter ── */
+.pc-counter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  border-radius: 20px;
+  background: var(--surface-container-high, #e8e8e8);
+  overflow: hidden;
+  animation: pcFadeIn 0.2s ease;
+}
+.pc-counter--large {
+  width: 100%;
+  border-radius: 12px;
+  justify-content: space-between;
+}
+.pc-counter__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  background: transparent;
+  color: var(--on-surface);
+}
+.pc-counter--large .pc-counter__btn {
+  width: 44px;
+  height: 44px;
+}
+.pc-counter__btn--minus:hover {
+  background: rgba(0,0,0,0.06);
+}
+.pc-counter__btn--plus {
+  background: var(--primary);
+  color: white;
+  border-radius: 0 20px 20px 0;
+}
+.pc-counter--large .pc-counter__btn--plus {
+  border-radius: 0 12px 12px 0;
+}
+.pc-counter__btn--plus:hover {
+  opacity: 0.85;
+}
+.pc-counter__qty {
+  min-width: 24px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--on-surface);
+  user-select: none;
+  padding: 0 4px;
+}
+.pc-counter--large .pc-counter__qty {
+  font-size: 18px;
+  min-width: 40px;
+}
+
+@keyframes pcFadeIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}

@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: #f9f9f9;
+  color: #1a1c1c;
+  -webkit-font-smoothing: antialiased;
+}
+
+.airy-shadow-low { box-shadow: 0px 2px 8px rgba(21, 69, 57, 0.05); }
+.airy-shadow-high { box-shadow: 0px 12px 32px rgba(21, 69, 57, 0.08); }
+.custom-shadow-low { box-shadow: 0px 2px 8px rgba(47, 93, 80, 0.05); }
+.custom-shadow-high { box-shadow: 0px 12px 32px rgba(47, 93, 80, 0.08); }
+.glass-card { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(8px); }
+.botanical-glass { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(8px); border: 1px solid rgba(231, 216, 201, 0.5); }
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #c0c8c4; border-radius: 10px; }
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.status-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23154539'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
+  background-size: 1rem;
+  padding-right: 2rem;
+}
+.tag-checkbox:checked + label {
+  background-color: #c9e7cc;
+  border-color: #154539;
+  color: #154539;
+}
