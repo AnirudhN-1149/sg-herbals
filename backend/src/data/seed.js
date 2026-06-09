@@ -11,6 +11,7 @@ const products = [
     subtitle: 'Handcrafted & Pure',
     category: 'soaps',
     sizes: [{ label: '100g', price: 3990 }],
+    stock: 15,
     tags: ['Bestseller', 'Natural'],
     description: 'A gentle, handcrafted soap bar enriched with pure lavender and neem. Ideal for daily use, it cleanses without stripping your skin natural oils, leaving you fresh and soft.',
     ingredients: [
@@ -42,6 +43,7 @@ const products = [
     subtitle: 'Deep Cleanse & Glow',
     category: 'face-wash',
     sizes: [{ label: '150mL', price: 2650 }],
+    stock: 8,
     tags: ['Clarifying'],
     description: 'A mild herbal face wash with rose water and kaolin clay that gently removes impurities, controls oil, and leaves your face feeling clean and refreshed.',
     ingredients: [
@@ -73,6 +75,7 @@ const products = [
     subtitle: 'Nourish & Strengthen',
     category: 'oils',
     sizes: [{ label: '100mL', price: 5650 }],
+    stock: 20,
     tags: ['Restoring'],
     description: 'A rich blend of rosehip, amla, and coconut oils designed to strengthen hair roots, reduce hair fall, and add a natural shine. Perfect for weekly deep conditioning.',
     ingredients: [
@@ -104,6 +107,7 @@ const products = [
     subtitle: 'Intense Nourishment',
     category: 'balms',
     sizes: [{ label: '30g', price: 4480 }],
+    stock: 12,
     tags: ['Hydrating'],
     description: 'A thick, comforting herbal balm with beeswax, calendula, and shea butter. Perfect for chapped lips, dry elbows, and rough skin patches.',
     ingredients: [
@@ -135,6 +139,7 @@ const products = [
     subtitle: 'Brightening & Glow',
     category: 'face-packs',
     sizes: [{ label: '50g', price: 1990 }],
+    stock: 18,
     tags: ['Brightening'],
     description: 'A traditional turmeric and sandalwood face pack that brightens complexion, reduces blemishes, and gives your skin a natural healthy glow in just 20 minutes.',
     ingredients: [
@@ -166,6 +171,7 @@ const products = [
     subtitle: 'Refresh & Shine',
     category: 'shampoos',
     sizes: [{ label: '80g', price: 3490 }],
+    stock: 5,
     tags: ['Refreshing'],
     description: 'A zero-waste, solid shampoo bar made with hibiscus and shikakai. Gently cleanses your scalp, adds volume, and leaves hair soft, shiny, and tangle-free.',
     ingredients: [
@@ -209,7 +215,7 @@ const seed = async () => {
     // Insert products
     const inserted = await Product.insertMany(products);
     console.log(`✅ Inserted ${inserted.length} products:`);
-    inserted.forEach(p => console.log(`   - ${p.name} (${p.category}) — ₹${p.price}`));
+    inserted.forEach(p => console.log(`   - ${p.name} (${p.category}) — ₹${p.price} (stock: ${p.stock})`));
 
     // Create default admin
     const admin = await Admin.create({

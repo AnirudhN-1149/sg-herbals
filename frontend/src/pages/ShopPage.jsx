@@ -5,24 +5,32 @@ import { faChevronLeft, faChevronRight, faChevronDown, faSearch } from '@fortawe
 import ProductCounter from '../components/ProductCounter';
 import './ShopPage.css';
 
-const categories = [
-  { key: 'all', label: 'All' },
-  { key: 'soaps', label: 'Soaps' },
-  { key: 'shampoos', label: 'Shampoos' },
-  { key: 'face-wash', label: 'Face Wash' },
-  { key: 'face-packs', label: 'Face Packs' },
-  { key: 'oils', label: 'Oils' },
-  { key: 'balms', label: 'Balms' },
-];
-
 export default function ShopPage() {
   const [products, setProducts] = useState([]);
   const [activeCategory, setActiveCategory] = useState('all');
-  const [sortBy, setSortBy] = useState('newest');
+  const [sortBy, setSortBy] = useState('bestselling');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
 
+  // Dynamic categories
+  const [categories, setCategories] = useState([{ key: 'all', label: 'All' }]);
+
+  // Track selected sizes for each product (maps productId -> sizeLabel)
+  const [selectedSizes, setSelectedSizes] = useState({});
+
   useEffect(() => {
+    // Fetch categories
+    fetch('http://localhost:5000/api/categories')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          const mapped = data.data.map(cat => ({ key: cat.name, label: cat.label }));
+          setCategories([{ key: 'all', label: 'All' }, ...mapped]);
+        }
+      })
+      .catch(err => console.error('Error fetching categories:', err));
+
+    // Fetch products
     fetch('http://localhost:5000/api/products?active=true')
       .then(res => res.json())
       .then(data => {
@@ -36,6 +44,7 @@ export default function ShopPage() {
   }, []);
 
   const filtered = useMemo(() => {
+    // Only filter by category on mobile; on desktop activeCategory is 'all' by default unless updated on mobile
     let list = activeCategory === 'all' ? [...products] : products.filter(p => p.category === activeCategory);
     
     if (searchQuery) {
@@ -44,11 +53,18 @@ export default function ShopPage() {
     }
 
     if (sortBy === 'price-low') {
-      list.sort((a, b) => (a.sizes?.[0]?.price || 0) - (b.sizes?.[0]?.price || 0));
+      list.sort((a, b) => {
+        const pA = a.sizes && a.sizes.length > 0 ? a.sizes[0].price : 0;
+        const pB = b.sizes && b.sizes.length > 0 ? b.sizes[0].price : 0;
+        return pA - pB;
+      });
     } else if (sortBy === 'price-high') {
-      list.sort((a, b) => (b.sizes?.[0]?.price || 0) - (a.sizes?.[0]?.price || 0));
+      list.sort((a, b) => {
+        const pA = a.sizes && a.sizes.length > 0 ? a.sizes[0].price : 0;
+        const pB = b.sizes && b.sizes.length > 0 ? b.sizes[0].price : 0;
+        return pB - pA;
+      });
     } else if (sortBy === 'newest') {
-      // sort by creation date descending
       list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     } else if (sortBy === 'bestselling') {
       list.sort((a, b) => (b.isBestSeller ? 1 : 0) - (a.isBestSeller ? 1 : 0));
@@ -80,29 +96,67 @@ export default function ShopPage() {
           />
         </div>
         <div className="shop__filters-row">
-          <div className="shop__filters">
-            {categories.map(cat => (
-              <button
-                key={cat.key}
-                className={`shop__filter-btn font-label-sm ${activeCategory === cat.key ? 'shop__filter-btn--active' : ''}`}
-                onClick={() => setActiveCategory(cat.key)}
+          {/* Desktop Filters (Category buttons + Sort select on right) */}
+          <div className="shop__filters-desktop">
+            {/* Category Buttons */}
+            <div className="shop__filters">
+              {categories.map(cat => (
+                <button
+                  key={cat.key}
+                  onClick={() => setActiveCategory(cat.key)}
+                  className={`shop__filter-btn font-label-sm ${activeCategory === cat.key ? 'shop__filter-btn--active' : ''}`}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Sort Dropdown */}
+            <div className="shop__sort-wrap">
+              <select
+                className="shop__sort font-label-sm w-full"
+                value={sortBy}
+                onChange={e => setSortBy(e.target.value)}
               >
-                {cat.label}
-              </button>
-            ))}
+                <option value="bestselling">Best Sellers First</option>
+                <option value="newest">New Arrivals</option>
+                <option value="price-low">Price: Low to High</option>
+                <option value="price-high">Price: High to Low</option>
+              </select>
+              <FontAwesomeIcon icon={faChevronDown} className="shop__sort-icon" />
+            </div>
           </div>
-          <div className="shop__sort-wrap">
-            <select
-              className="shop__sort font-label-sm"
-              value={sortBy}
-              onChange={e => setSortBy(e.target.value)}
-            >
-              <option value="newest">Newest Arrivals</option>
-              <option value="bestselling">Sort by: Bestselling</option>
-              <option value="price-low">Price: Low to High</option>
-              <option value="price-high">Price: High to Low</option>
-            </select>
-            <FontAwesomeIcon icon={faChevronDown} className="shop__sort-icon" />
+
+          {/* Tablet & Mobile Selectors (Side by side on the same row, no category buttons shown) */}
+          <div className="shop__filters-mobile">
+            {/* Category Dropdown */}
+            <div className="shop__sort-wrap flex-1">
+              <select
+                className="shop__sort font-label-sm w-full"
+                value={activeCategory}
+                onChange={e => setActiveCategory(e.target.value)}
+              >
+                {categories.map(cat => (
+                  <option key={cat.key} value={cat.key}>{cat.label}</option>
+                ))}
+              </select>
+              <FontAwesomeIcon icon={faChevronDown} className="shop__sort-icon" />
+            </div>
+
+            {/* Sort Dropdown */}
+            <div className="shop__sort-wrap flex-1">
+              <select
+                className="shop__sort font-label-sm w-full"
+                value={sortBy}
+                onChange={e => setSortBy(e.target.value)}
+              >
+                <option value="bestselling">Best Sellers First</option>
+                <option value="newest">New Arrivals</option>
+                <option value="price-low">Price: Low to High</option>
+                <option value="price-high">Price: High to Low</option>
+              </select>
+              <FontAwesomeIcon icon={faChevronDown} className="shop__sort-icon" />
+            </div>
           </div>
         </div>
 
@@ -112,30 +166,36 @@ export default function ShopPage() {
         ) : (
           <div className="shop__grid">
             {filtered.map(product => {
-              const defaultSize = product.sizes && product.sizes.length > 0 ? product.sizes[0] : { label: '1 unit', price: 0 };
+              const currentSizeLabel = selectedSizes[product._id] || (product.sizes && product.sizes.length > 0 ? product.sizes[0].label : '1 unit');
+              const currentSizeObj = product.sizes && product.sizes.length > 0
+                ? product.sizes.find(s => s.label === currentSizeLabel) || product.sizes[0]
+                : { label: '1 unit', price: 0 };
+
               const cartProduct = {
                 id: product._id,
                 name: product.name,
                 image: product.image,
-                price: defaultSize.price,
-                size: defaultSize.label,
-                cartId: `${product._id}-${defaultSize.label}`
+                price: currentSizeObj.price,
+                size: currentSizeObj.label,
+                cartId: `${product._id}-${currentSizeObj.label}`,
+                sizes: product.sizes,
+                stock: product.stock
               };
 
               return (
-                <Link to={`/product/${product._id}`} key={product._id} className="shop__card" style={{ textDecoration: 'none', color: 'inherit' }}>
+                <Link to={`/product/${product._id}`} key={product._id} className="shop__card" style={{ textDecoration: 'none', color: 'inherit', position: 'relative' }}>
+                  {/* Tags on Top Right border (popping out) */}
+                  <div style={{ position: 'absolute', top: '-10px', right: '12px', display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-end', zIndex: 20 }}>
+                    {product.isBestSeller && (
+                      <span className="font-label-sm" style={{ backgroundColor: '#e67e22', color: 'white', padding: '4px 12px', borderRadius: '20px', boxShadow: '0 4px 8px rgba(0, 0, 0, 0.15)', textTransform: 'uppercase', fontSize: '9px', fontWeight: '800', letterSpacing: '0.05em' }}>Bestseller</span>
+                    )}
+                    {product.isNewArrival && (
+                      <span className="font-label-sm" style={{ backgroundColor: '#27ae60', color: 'white', padding: '4px 12px', borderRadius: '20px', boxShadow: '0 4px 8px rgba(0, 0, 0, 0.15)', textTransform: 'uppercase', fontSize: '9px', fontWeight: '800', letterSpacing: '0.05em' }}>New Arrival</span>
+                    )}
+                  </div>
                   <div className="shop__card-img-wrap" style={{ position: 'relative' }}>
                     <img src={product.image} alt={product.name} className="shop__card-img" />
                     
-                    {/* Tags on Top Right */}
-                    <div style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-end' }}>
-                      {product.isBestSeller && (
-                        <span className="font-label-sm" style={{ backgroundColor: '#154539', color: 'white', padding: '4px 8px', borderRadius: '4px' }}>Bestseller</span>
-                      )}
-                      {product.isNewArrival && (
-                        <span className="font-label-sm" style={{ backgroundColor: '#2f5d50', color: 'white', padding: '4px 8px', borderRadius: '4px' }}>New Arrival</span>
-                      )}
-                    </div>
                     {/* Product Counter overlay */}
                     <div style={{ position: 'absolute', bottom: '12px', right: '12px', zIndex: 10 }}>
                       <ProductCounter product={cartProduct} />
@@ -143,9 +203,32 @@ export default function ShopPage() {
                   </div>
                   <div className="shop__card-body" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     <h3 className="font-headline-sm shop__card-name" style={{ fontWeight: 'bold' }}>{product.name}</h3>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                      <p className="font-headline-sm shop__card-price" style={{ fontWeight: 'bold', margin: 0 }}>₹{defaultSize.price.toLocaleString()}</p>
-                      <span className="font-body-sm" style={{ color: 'var(--on-surface-variant)' }}>{defaultSize.label}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                      <p className="font-headline-sm shop__card-price" style={{ fontWeight: 'bold', margin: 0 }}>
+                        ₹{currentSizeObj.price.toLocaleString()}
+                      </p>
+                      {product.sizes && product.sizes.length > 1 ? (
+                        <select
+                          value={currentSizeLabel}
+                          onChange={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setSelectedSizes(prev => ({ ...prev, [product._id]: e.target.value }));
+                          }}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                          }}
+                          className="variant-select"
+                          style={{ zIndex: 15 }}
+                        >
+                          {product.sizes.map(s => (
+                            <option key={s.label} value={s.label}>{s.label}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span className="font-body-sm" style={{ color: 'var(--on-surface-variant)' }}>{currentSizeObj.label}</span>
+                      )}
                     </div>
                   </div>
                 </Link>

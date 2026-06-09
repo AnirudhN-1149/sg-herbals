@@ -1,17 +1,31 @@
 import React from 'react';
 import { useWishlist } from '../context/WishlistContext';
+import { useToast } from '../context/ToastContext';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faPlus, faMinus } from '@fortawesome/free-solid-svg-icons';
 import './ProductCounter.css';
 
 export default function ProductCounter({ product, variant = 'default' }) {
   const { wishlistItems, addToWishlist, updateQuantity } = useWishlist();
+  const { showToast } = useToast();
   
   const identifier = product.cartId || product.id;
   const cartItem = wishlistItems.find(item => (item.cartId || item.id) === identifier);
   const quantity = cartItem ? cartItem.quantity : 0;
 
+  const stockLimit = product.stock !== undefined && product.stock !== null ? product.stock : 10;
+  const isOutOfStock = stockLimit <= 0;
+  const isPlusDisabled = quantity >= stockLimit;
+
   const handleAdd = (e) => {
     e.preventDefault();
     e.stopPropagation();
+
+    if (quantity >= stockLimit) {
+      showToast(`Cannot add more items. Only ${stockLimit} units available.`, 'error');
+      return;
+    }
+
     if (quantity === 0) {
       addToWishlist(product);
     } else {
@@ -24,6 +38,18 @@ export default function ProductCounter({ product, variant = 'default' }) {
     e.stopPropagation();
     updateQuantity(identifier, quantity - 1);
   };
+
+  if (isOutOfStock && quantity === 0) {
+    return (
+      <button 
+        disabled
+        className={`pc-add-btn pc-add-btn--out ${variant === 'large' ? 'pc-add-btn--large' : ''}`}
+        style={{ opacity: 0.6, cursor: 'not-allowed', backgroundColor: 'var(--outline-variant)', color: 'var(--on-surface-variant)' }}
+      >
+        Out of Stock
+      </button>
+    );
+  }
 
   if (quantity === 0) {
     return (
@@ -38,12 +64,18 @@ export default function ProductCounter({ product, variant = 'default' }) {
 
   return (
     <div className={`pc-counter ${variant === 'large' ? 'pc-counter--large' : ''}`} onClick={e => e.stopPropagation()}>
-      <button onClick={handleRemove} className="pc-counter__btn pc-counter__btn--minus">
-        <span className="material-symbols-outlined" style={{ fontSize: variant === 'large' ? '20px' : '16px' }}>remove</span>
+      <button onClick={handleRemove} className="pc-counter__btn pc-counter__btn--minus" aria-label="Decrease quantity">
+        <FontAwesomeIcon icon={faMinus} style={{ fontSize: variant === 'large' ? '14px' : '11px' }} />
       </button>
       <span className="pc-counter__qty">{quantity}</span>
-      <button onClick={handleAdd} className="pc-counter__btn pc-counter__btn--plus">
-        <span className="material-symbols-outlined" style={{ fontSize: variant === 'large' ? '20px' : '16px' }}>add</span>
+      <button 
+        onClick={handleAdd} 
+        disabled={isPlusDisabled}
+        className={`pc-counter__btn pc-counter__btn--plus ${isPlusDisabled ? 'pc-counter__btn--disabled' : ''}`} 
+        style={isPlusDisabled ? { opacity: 0.3, cursor: 'not-allowed' } : {}}
+        aria-label="Increase quantity"
+      >
+        <FontAwesomeIcon icon={faPlus} style={{ fontSize: variant === 'large' ? '14px' : '11px' }} />
       </button>
     </div>
   );

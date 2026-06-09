@@ -16,8 +16,8 @@ const productSchema = new mongoose.Schema({
   category: {
     type: String,
     required: true,
-    enum: ['soaps', 'shampoos', 'face-wash', 'face-packs', 'oils', 'balms'],
   },
+  stock: { type: Number },
   sizes: [{
     label: { type: String, required: true },
     price: { type: Number, required: true }

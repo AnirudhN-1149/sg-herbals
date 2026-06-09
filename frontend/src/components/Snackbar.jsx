@@ -1,6 +1,8 @@
 import React from 'react';
 import { useLocation } from 'react-router-dom';
 import { useWishlist } from '../context/WishlistContext';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faShoppingBag, faArrowRight } from '@fortawesome/free-solid-svg-icons';
 import './Snackbar.css';
 
 export default function Snackbar() {
@@ -13,7 +15,7 @@ export default function Snackbar() {
   return (
     <div className="snackbar">
       <div className="snackbar__info">
-        <span className="material-symbols-outlined snackbar__icon">shopping_bag</span>
+        <FontAwesomeIcon icon={faShoppingBag} className="snackbar__icon" style={{ fontSize: '18px' }} />
         <div className="snackbar__text">
           <span className="snackbar__count">{totalItems} item{totalItems > 1 ? 's' : ''}</span>
           <span className="snackbar__total">₹{subtotal.toLocaleString()}</span>
@@ -21,8 +23,9 @@ export default function Snackbar() {
       </div>
       <button onClick={() => setIsDrawerOpen(true)} className="snackbar__btn">
         View Order
-        <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>arrow_forward</span>
+        <FontAwesomeIcon icon={faArrowRight} style={{ fontSize: '14px' }} />
       </button>
     </div>
   );
 }
+

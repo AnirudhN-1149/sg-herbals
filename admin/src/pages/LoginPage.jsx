@@ -29,7 +29,7 @@ export default function LoginPage() {
       const data = await res.json()
       if (res.ok) {
         localStorage.setItem('adminToken', data.token || 'dummy_token')
-        navigate('/dashboard')
+        navigate('/orders')
       } else {
         setError(data.message || 'Login failed')
       }
@@ -54,7 +54,7 @@ export default function LoginPage() {
             <img
               src={LOGO_URL}
               alt="SG Herbals Logo"
-              className="w-16 h-16 rounded-xl object-cover mb-4 shadow-sm"
+              className="w-20 h-20 rounded-xl object-contain mb-4 shadow-sm bg-white p-1"
             />
             <h1 className="text-headline-md font-headline-md text-primary">SG Herbals Admin</h1>
             <p className="text-body-sm font-body-sm text-on-surface-variant mt-1">Sign in to your admin account</p>

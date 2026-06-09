@@ -4,12 +4,18 @@ const { upload, cloudinary } = require('../config/cloudinary');
 const { protect } = require('../middleware/auth.middleware');
 
 // Single image upload endpoint
-router.post('/image', protect, upload.single('image'), (req, res) => {
-  if (!req.file) return res.status(400).json({ success: false, message: 'No file uploaded' });
-  res.json({
-    success: true,
-    url: req.file.path,
-    publicId: req.file.filename,
+router.post('/image', protect, (req, res, next) => {
+  upload.single('image')(req, res, (err) => {
+    if (err) {
+      console.error('Upload error details:', err);
+      return res.status(500).json({ success: false, message: err.message || 'Image upload failed' });
+    }
+    if (!req.file) return res.status(400).json({ success: false, message: 'No file uploaded' });
+    res.json({
+      success: true,
+      url: req.file.path,
+      publicId: req.file.filename,
+    });
   });
 });
 

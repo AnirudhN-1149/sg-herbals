@@ -4,7 +4,6 @@ import { NavLink } from 'react-router-dom'
 const LOGO_URL = 'https://lh3.googleusercontent.com/aida-public/AB6AXuBsmTl7RwJn8HJcQqyFactNbxMuCnevm_tv2VD5-iNJnNSw1yUv224pbe3XmnOQ2a_CPmrT0enfRHxKA4OSgiG1M_IQJGlwH1SMTMs4vy_t6ABqWa12RMM31ccI_FDZt6xsiQZj1MHsGxZ8zoxibtJvmOik6KY9NurlCHA6PN8ZYFs3yOxqygL4TH5oxItiFUnJ5kaVC4M5NrsvcbPKrXQgc36W7e5DEZJuNuKNHagAQD4HhcX1rzaJK9kwcdPL3NuYJJl_8rWGieSk'
 
 const navItems = [
-  { label: 'Dashboard', icon: 'dashboard', path: '/dashboard' },
   { label: 'Orders', icon: 'shopping_cart', path: '/orders' },
   { label: 'Products', icon: 'spa', path: '/products' },
   { label: 'Inventory', icon: 'inventory_2', path: '/inventory' },
@@ -46,10 +45,6 @@ export default function AdminSidebar() {
         ))}
       </nav>
 
-      {/* Bottom */}
-      <div className="mt-auto px-4 pt-6 border-t border-outline-variant/20">
-        <p className="text-label-sm font-label-sm text-on-surface-variant opacity-50">v0.0.1 · Admin Build</p>
-      </div>
       </aside>
 
       {/* Mobile Bottom Navigation */}

@@ -66,10 +66,35 @@ exports.getOrderById = async (req, res) => {
 
 exports.updateOrderStatus = async (req, res) => {
   try {
-    const { status } = req.body;
-    const order = await Order.findByIdAndUpdate(req.params.id, { status }, { new: true, runValidators: true });
+    const order = await Order.findById(req.params.id);
     if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
-    res.json({ success: true, data: order });
+
+    // Deduct stock if order is transitioning to 'completed'
+    if (order.status !== 'completed' && req.body.status === 'completed') {
+      const Product = require('../models/Product.model');
+      for (const item of order.items) {
+        if (item.productId) {
+          const product = await Product.findById(item.productId);
+          if (product) {
+            if (product.stock !== undefined && product.stock !== null) {
+              product.stock = Math.max(0, product.stock - item.quantity);
+              if (product.stock <= 0) {
+                product.isActive = false;
+              }
+              await product.save();
+            }
+          }
+        }
+      }
+    }
+
+    const updateData = {};
+    if (req.body.status !== undefined) updateData.status = req.body.status;
+    if (req.body.shippingFee !== undefined) updateData.shippingFee = req.body.shippingFee;
+    if (req.body.total !== undefined) updateData.total = req.body.total;
+
+    const updatedOrder = await Order.findByIdAndUpdate(req.params.id, updateData, { new: true, runValidators: true });
+    res.json({ success: true, data: updatedOrder });
   } catch (err) {
     res.status(400).json({ success: false, message: err.message });
   }

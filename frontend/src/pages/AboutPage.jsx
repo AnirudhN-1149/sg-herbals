@@ -1,7 +1,7 @@
 import React from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faLeaf, faEye, faHandshake, faBoxOpen, faQuoteLeft } from '@fortawesome/free-solid-svg-icons';
-import { aboutHeroImage, heritageImage, sustainImage, founderImage } from '../data/products';
+import { faLeaf, faEye, faHandshake, faQuoteLeft } from '@fortawesome/free-solid-svg-icons';
+import { aboutHeroImage, heritageImage, founderImage } from '../data/products';
 import './AboutPage.css';
 
 export default function AboutPage() {

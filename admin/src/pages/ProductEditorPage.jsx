@@ -1,10 +1,9 @@
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import AdminSidebar from '../components/AdminSidebar'
 import AdminTopBar from '../components/AdminTopBar'
-
-const PRODUCT_IMG_MAIN = 'https://lh3.googleusercontent.com/aida-public/AB6AXuBYlSvCe_Oo0TiPjZxVR2jkgXnEKPrplGKmKZAqB4JnI6kpG9KPqNVmJf7kA_E1e4eCWBJE1i_XkFGFZi_MSSRh9x9Qnxp1N6KHpRa1X9bJeQanfA6T09gCOovK8SSSxQnXqInnbVD7mZOb9LXrjzJ5Y1iELFxvbDg6-1kN-ACacHPBQ22OPjjDDH7CpGtnKjqe-9Kqr_SzJ8ELZdOKqJxCyXRp2LO7Z7nPaWKsEqJzYQJJuIjMtA0RK-BVlGP7dsTnVA0Yf1KX'
-const PRODUCT_IMG_THUMB2 = 'https://lh3.googleusercontent.com/aida-public/AB6AXuC2M-VCB0MlE_EHAoFNDFWFMEFJQvHpjN7k2R87yN8eiqwRYFQTJ3K3C-KCq0oFvL1UjqQd4MiF6pI4W0M6IwCPCEWR6pNe7QhTQ5ZGbEJQ-UjlHgZxqSmFJUCUqxKpJnJQkU1yEH5HGb4dHB3xPaAJQhqhlJKEKxlWE-BLiXg3K8Y7Gur7r2yyONkMVSQDnPp1kp64jZ_BfJLBQxwRvRFhLMZ_UrM6T89W4MoheNQ9M_K_jHH8v7M1mGAhqDjdFJ2gUJc5lFxc'
+import { useToast } from '../components/ToastContext'
+import ConfirmationModal from '../components/ConfirmationModal'
 
 const ALL_TAGS = [
   { id: 'natural', label: 'Natural Ingredients', icon: 'eco' },
@@ -15,115 +14,298 @@ const ALL_TAGS = [
   { id: 'skin-safe', label: 'Skin Safe', icon: 'health_and_safety' },
 ]
 
+// Helper to parse product variant labels (e.g., "100g" -> { quantity: "100", unit: "g" })
+function parseSizeLabel(label) {
+  if (!label) return { quantity: '', unit: 'g' };
+  if (label.toLowerCase().endsWith('ml')) {
+    return { quantity: label.slice(0, -2).trim(), unit: 'mL' };
+  }
+  if (label.toLowerCase().endsWith('pc.')) {
+    return { quantity: label.slice(0, -3).trim(), unit: 'pc.' };
+  }
+  if (label.toLowerCase().endsWith('pc')) {
+    return { quantity: label.slice(0, -2).trim(), unit: 'pc.' };
+  }
+  if (label.toLowerCase().endsWith('g')) {
+    return { quantity: label.slice(0, -1).trim(), unit: 'g' };
+  }
+  const match = label.match(/^(\d+)/);
+  if (match) {
+    const quantity = match[1];
+    const unitPart = label.slice(quantity.length).trim().toLowerCase();
+    let unit = 'g';
+    if (unitPart === 'ml') unit = 'mL';
+    else if (unitPart.includes('pc')) unit = 'pc.';
+    return { quantity, unit };
+  }
+  return { quantity: label, unit: 'g' };
+}
+
 export default function ProductEditorPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const isNew = !id || id === 'new'
+  const fileInputRef = useRef(null)
+  const { showToast } = useToast()
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+
   const [isLive, setIsLive] = useState(true)
   const [selectedTags, setSelectedTags] = useState([])
   const [productName, setProductName] = useState('')
-  const [category, setCategory] = useState('soaps')
-  const [sizes, setSizes] = useState([{ label: '30mL', price: '3999' }])
+  const [category, setCategory] = useState('')
+  const [sizes, setSizes] = useState([{ quantity: '', unit: 'g', price: '' }])
   const [isNewArrival, setIsNewArrival] = useState(false)
   const [isBestSeller, setIsBestSeller] = useState(false)
   const [ingredients, setIngredients] = useState('')
   const [usage, setUsage] = useState('')
   const [description, setDescription] = useState('')
   const [loading, setLoading] = useState(false)
+  const [fetchLoading, setFetchLoading] = useState(!isNew)
 
-  React.useEffect(() => {
-    if (id && id !== 'new') {
+  // Stock state
+  const [stock, setStock] = useState(10)
+
+  // Categories list state
+  const [categories, setCategories] = useState([])
+
+  // Images state (5 slots: either string URL, File object, or null)
+  const [images, setImages] = useState([null, null, null, null, null])
+  const [activeImageIndex, setActiveImageIndex] = useState(null)
+  const [uploadingImage, setUploadingImage] = useState(false)
+
+  useEffect(() => {
+    fetchCategories()
+  }, [])
+
+  useEffect(() => {
+    if (!isNew) {
+      setFetchLoading(true)
       fetch(`http://localhost:5000/api/products/${id}`)
         .then(res => res.json())
         .then(data => {
           if (data.success) {
-            const p = data.data;
-            setProductName(p.name);
-            setCategory(p.category);
-            setDescription(p.description);
-            setIsLive(p.isActive);
-            setIsNewArrival(p.isNewArrival || false);
-            setIsBestSeller(p.isBestSeller || false);
-            setSelectedTags(p.tags || []);
-            setSizes(p.sizes || [{ label: '', price: '' }]);
+            const p = data.data
+            setProductName(p.name || '')
+            setCategory(p.category || '')
+            setDescription(p.description || '')
+            setIsLive(p.isActive !== false)
+            setIsNewArrival(p.isNewArrival || false)
+            setIsBestSeller(p.isBestSeller || false)
+            setSelectedTags(p.tags || [])
+            if (p.sizes && p.sizes.length > 0) {
+              setSizes(p.sizes.map(s => {
+                const parsed = parseSizeLabel(s.label);
+                return { quantity: parsed.quantity, unit: parsed.unit, price: s.price };
+              }));
+            } else {
+              setSizes([{ quantity: '', unit: 'g', price: '' }]);
+            }
+            setStock(p.stock !== undefined && p.stock !== null ? p.stock : 10);
             
+            if (p.images && p.images.length > 0) {
+              const arr = [null, null, null, null, null]
+              p.images.slice(0, 5).forEach((url, i) => {
+                arr[i] = url
+              })
+              setImages(arr)
+            } else if (p.image) {
+              setImages([p.image, null, null, null, null])
+            }
             if (p.ingredients && p.ingredients.length > 0) {
-               setIngredients(p.ingredients.map(i => `${i.name}: ${i.benefit}`).join('\n'));
+              setIngredients(p.ingredients.map(i => `${i.name}: ${i.benefit}`).join('\n'))
             }
             if (p.howToUse && p.howToUse.length > 0) {
-               setUsage(p.howToUse.map(u => `${u.step}: ${u.detail}`).join('\n'));
+              setUsage(p.howToUse.map(u => `${u.step}: ${u.detail}`).join('\n'))
             }
           }
         })
+        .catch(console.error)
+        .finally(() => setFetchLoading(false))
     }
-  }, [id])
+  }, [id, isNew])
+
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/api/categories');
+      const data = await res.json();
+      if (data.success) {
+        setCategories(data.data);
+        if (isNew && data.data.length > 0) {
+          setCategory(data.data[0].name);
+        }
+      }
+    } catch(err) {
+      console.error('Error fetching categories:', err);
+    }
+  }
+
+  function handleImageSelect(e) {
+    const file = e.target.files[0]
+    if (!file || activeImageIndex === null) return
+    const newImages = [...images]
+    newImages[activeImageIndex] = file
+    setImages(newImages)
+  }
+
+  function handleSelectSlot(index) {
+    setActiveImageIndex(index)
+    fileInputRef.current.click()
+  }
+
+  function handleDeleteSlot(index, e) {
+    e.stopPropagation()
+    const newImages = [...images]
+    newImages[index] = null
+    setImages(newImages)
+  }
+
+  function handleMoveImage(index, direction) {
+    if (direction === 'up' && index > 0) {
+      const newImages = [...images];
+      const temp = newImages[index];
+      newImages[index] = newImages[index - 1];
+      newImages[index - 1] = temp;
+      setImages(newImages);
+    } else if (direction === 'down' && index < 4) {
+      const newImages = [...images];
+      const temp = newImages[index];
+      newImages[index] = newImages[index + 1];
+      newImages[index + 1] = temp;
+      setImages(newImages);
+    }
+  }
+
+  async function uploadImageToCloudinary(file) {
+    setUploadingImage(true)
+    try {
+      const token = localStorage.getItem('adminToken') || ''
+      const formData = new FormData()
+      formData.append('image', file)
+      const res = await fetch('http://localhost:5000/api/upload/image', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      })
+      const data = await res.json()
+      if (data.success) {
+        return data.url
+      }
+      throw new Error(data.message || 'Upload failed')
+    } finally {
+      setUploadingImage(false)
+    }
+  }
 
   async function handleSave() {
-    setLoading(true)
-    // Parse ingredients & usage
-    const parsedIngredients = ingredients.split('\n').filter(Boolean).map(line => {
-      const parts = line.split(':');
-      return { name: parts[0]?.trim() || line, benefit: parts[1]?.trim() || '' };
-    });
-    const parsedUsage = usage.split('\n').filter(Boolean).map(line => {
-      const parts = line.split(':');
-      return { step: parts[0]?.trim() || '', detail: parts[1]?.trim() || line };
-    });
-
-    const payload = {
-      name: productName,
-      category,
-      description,
-      isActive: isLive,
-      isNewArrival,
-      isBestSeller,
-      tags: selectedTags,
-      ingredients: parsedIngredients,
-      howToUse: parsedUsage,
-      sizes: sizes.map(s => ({ label: s.label || s.units + s.unit, price: Number(s.price) }))
+    if (!productName.trim()) {
+      showToast('Please enter a product name.', 'error')
+      return
     }
-    const method = id && id !== 'new' ? 'PUT' : 'POST'
-    const url = id && id !== 'new' ? `http://localhost:5000/api/products/${id}` : `http://localhost:5000/api/products`
+    const validSizes = sizes.filter(s => s.quantity && s.price !== '');
+    if (validSizes.length === 0) {
+      showToast('Please add at least one valid pricing variant (with quantity and price).', 'error')
+      return
+    }
+    setLoading(true)
 
     try {
-      const token = localStorage.getItem('adminToken') || '';
+      // Upload any new image files sequentially
+      const uploadedUrls = []
+      for (let i = 0; i < images.length; i++) {
+        const item = images[i]
+        if (!item) continue
+        if (typeof item === 'string') {
+          uploadedUrls.push(item)
+        } else if (item instanceof File) {
+          const url = await uploadImageToCloudinary(item)
+          uploadedUrls.push(url)
+        }
+      }
+
+      const primaryImage = uploadedUrls[0] || ''
+
+      const parsedIngredients = ingredients.split('\n').filter(Boolean).map(line => {
+        const parts = line.split(':')
+        return { name: parts[0]?.trim() || line, benefit: parts[1]?.trim() || '' }
+      })
+      const parsedUsage = usage.split('\n').filter(Boolean).map(line => {
+        const parts = line.split(':')
+        return { step: parts[0]?.trim() || '', detail: parts[1]?.trim() || line }
+      })
+
+      const payload = {
+        name: productName,
+        category,
+        description,
+        isActive: isLive,
+        isNewArrival,
+        isBestSeller,
+        tags: selectedTags,
+        ingredients: parsedIngredients,
+        howToUse: parsedUsage,
+        sizes: sizes
+          .filter(s => s.quantity && s.price !== '')
+          .map(s => {
+            const label = s.unit === 'pc.' ? `${s.quantity} pc.` : `${s.quantity}${s.unit}`;
+            return { label, price: Number(s.price) || 0 };
+          }),
+        image: primaryImage,
+        images: uploadedUrls,
+        stock: Number(stock) || 0
+      }
+
+      const method = isNew ? 'POST' : 'PUT'
+      const url = isNew
+        ? 'http://localhost:5000/api/products'
+        : `http://localhost:5000/api/products/${id}`
+
+      const token = localStorage.getItem('adminToken') || ''
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(payload)
       })
-      if (res.ok) {
-        alert('Product saved!')
-        navigate('/products')
+
+      const result = await res.json()
+      if (res.ok && result.success) {
+        showToast('Saved successfully!')
+        setTimeout(() => {
+          navigate('/products')
+        }, 800)
+      } else {
+        showToast('Save failed: ' + (result.message || 'Unknown error'), 'error')
       }
-    } catch(err) {
+    } catch (err) {
       console.error(err)
-      alert('Failed to save product')
+      showToast('Failed to save product: ' + err.message, 'error')
     }
     setLoading(false)
   }
 
-  function toggleTag(id) {
-    if (selectedTags.includes(id)) {
-      setSelectedTags((prev) => prev.filter((t) => t !== id))
+  function toggleTag(tagId) {
+    if (selectedTags.includes(tagId)) {
+      setSelectedTags(prev => prev.filter(t => t !== tagId))
     } else {
       if (selectedTags.length < 3) {
-        setSelectedTags((prev) => [...prev, id])
+        setSelectedTags(prev => [...prev, tagId])
       }
     }
   }
 
-  function addSize() {
-    setSizes((prev) => [...prev, { label: '', price: '' }])
-  }
-
+  function addSize() { setSizes(prev => [...prev, { quantity: '', unit: 'g', price: '' }]) }
   function updateSize(index, field, value) {
     const newSizes = [...sizes]
     newSizes[index][field] = value
     setSizes(newSizes)
   }
+  function removeSize(index) { setSizes(prev => prev.filter((_, i) => i !== index)) }
 
-  function removeSize(index) {
-    setSizes((prev) => prev.filter((_, i) => i !== index))
+  if (fetchLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-surface">
+        <div className="text-on-surface-variant">Loading product...</div>
+      </div>
+    )
   }
 
   return (
@@ -131,9 +313,9 @@ export default function ProductEditorPage() {
       <AdminSidebar />
 
       <div className="flex-1 flex flex-col overflow-auto md:ml-64 pb-16 md:pb-0">
-        <AdminTopBar pageTitle="Product Details Editor" />
+        <AdminTopBar pageTitle="Product Editor" />
 
-        <main className="flex-1 p-6 space-y-6 pb-24">
+        <main className="flex-1 p-6 space-y-6 mt-2 pb-32">
           {/* Back + Header */}
           <div>
             <Link
@@ -143,9 +325,25 @@ export default function ProductEditorPage() {
               <span className="material-symbols-outlined text-[18px] group-hover:-translate-x-1 transition-transform">arrow_back</span>
               Back to Products
             </Link>
-            <div className="flex items-center gap-3 flex-wrap">
-              <h2 className="text-headline-md font-headline-md text-on-surface">{id && id !== 'new' ? `Edit Product: ${productName}` : 'Create New Product'}</h2>
-              <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-800 text-label-sm font-label-sm">Active Draft</span>
+            <div className="flex items-center justify-between flex-wrap gap-4 w-full">
+              <div className="flex items-center gap-3 flex-wrap">
+                <h2 className="text-headline-md font-headline-md text-on-surface">
+                  {isNew ? 'Create New Product' : `Edit: ${productName || 'Product'}`}
+                </h2>
+                <span className={`px-3 py-1 rounded-full text-label-sm font-label-sm ${isLive ? 'bg-secondary-container text-on-secondary-container' : 'bg-surface-container-high text-on-surface-variant'}`}>
+                  {isLive ? 'Live' : 'Hidden'}
+                </span>
+              </div>
+              {!isNew && (
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteModal(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-error-container/30 text-error hover:bg-error-container rounded-lg text-label-md font-label-md transition-colors shadow-sm"
+                >
+                  <span className="material-symbols-outlined text-[18px]">delete</span>
+                  Delete Product
+                </button>
+              )}
             </div>
           </div>
 
@@ -153,72 +351,121 @@ export default function ProductEditorPage() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* LEFT COLUMN */}
             <div className="lg:col-span-4 space-y-5">
-              {/* Main Image */}
-              <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/20 airy-shadow-low overflow-hidden">
-                <div className="relative aspect-square group cursor-pointer">
-                  <img
-                    src={PRODUCT_IMG_MAIN}
-                    alt="Product main"
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <div className="flex items-center gap-2 text-white text-label-md font-label-md">
-                      <span className="material-symbols-outlined text-[20px]">edit</span>
-                      Change Image
+              {/* Product Images (Gallery) */}
+              <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/20 airy-shadow-low p-5 space-y-4">
+                <div>
+                  <h3 className="text-label-md font-label-md text-on-surface">Product Images (Max 5)</h3>
+                  <p className="text-body-sm font-body-sm text-on-surface-variant mt-0.5">Upload to slots. Slot 1 is the default primary cover image.</p>
+                </div>
+
+                <div className="space-y-3">
+                  {images.map((img, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-3 bg-surface-container-low rounded-xl border border-outline-variant/20">
+                      <div className="flex items-center gap-3">
+                        <div className="flex flex-col items-center justify-center w-6 h-6 rounded-full bg-surface-container-high text-[11px] font-bold text-primary">
+                          {idx + 1}
+                        </div>
+
+                        <div
+                          onClick={() => handleSelectSlot(idx)}
+                          className="w-12 h-12 rounded-lg border border-outline-variant/30 overflow-hidden bg-surface-container-lowest flex items-center justify-center cursor-pointer hover:border-primary transition-all"
+                        >
+                          {img ? (
+                            <img
+                              src={typeof img === 'string' ? img : URL.createObjectURL(img)}
+                              alt={`Slot ${idx + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span className="material-symbols-outlined text-on-surface-variant opacity-60 text-[18px]">add_a_photo</span>
+                          )}
+                        </div>
+
+                        <div>
+                          <p className="text-label-sm font-bold text-on-surface">
+                            {idx === 0 ? 'Cover (Default)' : `Slot ${idx + 1}`}
+                          </p>
+                          <p className="text-[10px] text-on-surface-variant leading-none">
+                            {img ? 'Image added' : 'Empty slot'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        {img && (
+                          <>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleMoveImage(idx, 'up'); }}
+                              disabled={idx === 0}
+                              className="w-7 h-7 flex items-center justify-center bg-surface-container text-on-surface-variant hover:text-primary rounded-md disabled:opacity-30 transition-colors"
+                              title="Move Up"
+                            >
+                              <span className="material-symbols-outlined text-[16px]">arrow_upward</span>
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleMoveImage(idx, 'down'); }}
+                              disabled={idx === 4 || !images[idx + 1]}
+                              className="w-7 h-7 flex items-center justify-center bg-surface-container text-on-surface-variant hover:text-primary rounded-md disabled:opacity-30 transition-colors"
+                              title="Move Down"
+                            >
+                              <span className="material-symbols-outlined text-[16px]">arrow_downward</span>
+                            </button>
+                            <button
+                              onClick={(e) => handleDeleteSlot(idx, e)}
+                              className="w-7 h-7 flex items-center justify-center bg-error-container/30 text-error hover:bg-error-container rounded-md transition-colors"
+                              title="Delete Image"
+                            >
+                              <span className="material-symbols-outlined text-[16px]">delete</span>
+                            </button>
+                          </>
+                        )}
+                        {!img && (
+                          <button
+                            onClick={() => handleSelectSlot(idx)}
+                            className="px-2 py-1 text-[10px] font-semibold text-primary bg-primary-container/20 hover:bg-primary-container/40 rounded-md transition-colors"
+                          >
+                            Upload
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  ))}
                 </div>
 
-                {/* Thumbnails */}
-                <div className="p-4 grid grid-cols-4 gap-2">
-                  <div className="aspect-square rounded-lg overflow-hidden border-2 border-primary cursor-pointer">
-                    <img src={PRODUCT_IMG_MAIN} alt="thumb 1" className="w-full h-full object-cover" />
-                  </div>
-                  <div className="aspect-square rounded-lg overflow-hidden border border-outline-variant/30 cursor-pointer">
-                    <img src={PRODUCT_IMG_THUMB2} alt="thumb 2" className="w-full h-full object-cover" />
-                  </div>
-                  <button className="aspect-square rounded-lg border-2 border-dashed border-outline-variant/50 flex items-center justify-center text-on-surface-variant hover:border-primary hover:text-primary transition-colors">
-                    <span className="material-symbols-outlined text-[20px]">add_photo_alternate</span>
-                  </button>
-                  <div className="aspect-square rounded-lg bg-surface-container-low border border-outline-variant/20" />
-                </div>
+                {uploadingImage && (
+                  <p className="text-label-sm text-primary animate-pulse text-center">
+                    Uploading selected images...
+                  </p>
+                )}
 
-                <p className="text-center text-label-sm font-label-sm text-on-surface-variant opacity-60 pb-4">
-                  Recommended size: 2000×2000px. Max 5MB.
-                </p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  style={{ display: 'none' }}
+                  onChange={handleImageSelect}
+                />
               </div>
 
               {/* Status Toggle */}
-              <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/20 airy-shadow-low p-5">
+              <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/20 airy-shadow-low p-5 space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-label-md font-label-md text-on-surface">Product Status</p>
-                    <p className="text-body-sm font-body-sm text-on-surface-variant mt-0.5">
-                      Is this product visible to customers?
-                    </p>
+                    <p className="text-label-md font-label-md text-on-surface">Visibility</p>
+                    <p className="text-body-sm font-body-sm text-on-surface-variant mt-0.5">Show to customers?</p>
                   </div>
                   <div className="flex items-center gap-3">
                     <span className={`text-label-sm font-label-sm ${isLive ? 'text-secondary' : 'text-on-surface-variant'}`}>
                       {isLive ? 'Live' : 'Hidden'}
                     </span>
                     <button
-                      onClick={() => setIsLive((v) => !v)}
-                      className={`relative w-12 h-6 rounded-full transition-colors duration-200 ${
-                        isLive ? 'bg-primary' : 'bg-surface-container-highest'
-                      }`}
+                      onClick={() => setIsLive(v => !v)}
+                      className={`relative w-12 h-6 rounded-full transition-colors duration-200 ${isLive ? 'bg-primary' : 'bg-surface-container-highest'}`}
                     >
-                      <span
-                        className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${
-                          isLive ? 'translate-x-6' : 'translate-x-0'
-                        }`}
-                      />
+                      <span className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${isLive ? 'translate-x-6' : 'translate-x-0'}`} />
                     </button>
                   </div>
                 </div>
-              </div>
-
-              {/* Extra Toggles */}
-              <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/20 airy-shadow-low p-5 space-y-4 mt-5">
                 <div className="flex items-center justify-between">
                   <p className="text-label-md font-label-md text-on-surface">New Arrival</p>
                   <button onClick={() => setIsNewArrival(v => !v)} className={`relative w-10 h-5 rounded-full transition-colors ${isNewArrival ? 'bg-primary' : 'bg-surface-container-highest'}`}>
@@ -235,106 +482,195 @@ export default function ProductEditorPage() {
             </div>
 
             {/* RIGHT COLUMN */}
-            <div className="lg:col-span-8">
+            <div className="lg:col-span-8 space-y-6">
               <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/20 airy-shadow-low p-6 space-y-5">
                 {/* Product Name */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-label-md font-label-md text-on-surface">Product Name</label>
+                  <label className="text-label-md font-label-md text-on-surface">Product Name *</label>
                   <input
                     type="text"
                     value={productName}
-                    onChange={(e) => setProductName(e.target.value)}
+                    onChange={e => setProductName(e.target.value)}
+                    placeholder="e.g. Herbal Neem Soap"
                     className="bg-surface-container-low border border-outline-variant/40 rounded-lg px-4 py-3 text-body-md font-body-md text-on-surface outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all"
                   />
                 </div>
 
-                {/* Category */}
+                {/* Category select dropdown */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-label-md font-label-md text-on-surface">Category</label>
+                  <label className="text-label-md font-label-md text-on-surface">Category *</label>
                   <select
                     value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    className="bg-surface-container-low border border-outline-variant/40 rounded-lg px-4 py-3 text-body-md font-body-md text-on-surface outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all"
+                    onChange={e => setCategory(e.target.value)}
+                    className="bg-surface-container-low border border-outline-variant/40 rounded-lg px-4 py-3 text-body-md font-body-md text-on-surface outline-none focus:border-primary transition-all"
                   >
-                    <option value="soaps">Soaps</option>
-                    <option value="shampoos">Shampoos</option>
-                    <option value="face-wash">Face Wash</option>
-                    <option value="face-packs">Face Packs</option>
-                    <option value="oils">Oils</option>
-                    <option value="balms">Balms</option>
+                    {categories.map(cat => (
+                      <option key={cat.name} value={cat.name}>{cat.label}</option>
+                    ))}
                   </select>
                 </div>
 
-                {/* Dynamic Sizes/Prices */}
+                {/* Pricing & Variants */}
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center justify-between">
                     <label className="text-label-md font-label-md text-on-surface">Pricing & Variants</label>
-                    <button type="button" onClick={addSize} className="text-label-sm font-label-sm text-primary hover:underline">
-                      + Add Variant
+                    <button type="button" onClick={addSize} className="text-label-sm font-label-sm text-primary hover:underline flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[16px]">add</span> Add Variant
                     </button>
                   </div>
                   {sizes.map((s, idx) => (
-                    <div key={idx} className="flex gap-4 items-center">
-                      <div className="flex-1 flex gap-2">
-                        <input type="text" placeholder="Size (e.g. 30mL)" value={s.label} onChange={e => updateSize(idx, 'label', e.target.value)} className="w-full bg-surface-container-low border border-outline-variant/40 rounded-lg px-3 py-2 text-body-md text-on-surface focus:border-primary outline-none" />
+                    <div key={idx} className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center bg-surface-container-low/40 sm:bg-transparent p-4 sm:p-0 rounded-xl border border-outline-variant/20 sm:border-0 relative">
+                      {/* Label for Mobile */}
+                      <span className="absolute top-2 right-2 sm:hidden text-[10px] font-bold text-white bg-primary-container px-2 py-0.5 rounded-full">
+                        Variant #{idx + 1}
+                      </span>
+                      
+                      {/* Quantity input */}
+                      <div className="flex-1 flex flex-col gap-1">
+                        <label className="text-[11px] font-bold text-on-surface-variant sm:hidden">Quantity</label>
+                        <input
+                          type="number"
+                          placeholder="Quantity (e.g. 100)"
+                          value={s.quantity}
+                          onChange={e => updateSize(idx, 'quantity', e.target.value)}
+                          className="bg-surface-container-low border border-outline-variant/40 rounded-lg px-3 py-2.5 text-body-md text-on-surface focus:border-primary outline-none"
+                        />
                       </div>
-                      <div className="flex-1">
-                        <input type="number" placeholder="Price (₹)" value={s.price} onChange={e => updateSize(idx, 'price', e.target.value)} className="w-full bg-surface-container-low border border-outline-variant/40 rounded-lg px-3 py-2 text-body-md text-on-surface focus:border-primary outline-none" />
+
+                      {/* Unit select */}
+                      <div className="w-full sm:w-24 flex flex-col gap-1">
+                        <label className="text-[11px] font-bold text-on-surface-variant sm:hidden">Unit</label>
+                        <select
+                          value={s.unit}
+                          onChange={e => updateSize(idx, 'unit', e.target.value)}
+                          className="bg-surface-container-low border border-outline-variant/40 rounded-lg px-3 py-2.5 text-body-md text-on-surface focus:border-primary outline-none"
+                        >
+                          <option value="g">g</option>
+                          <option value="mL">mL</option>
+                          <option value="pc.">pc.</option>
+                        </select>
                       </div>
+
+                      {/* Price input */}
+                      <div className="flex-1 flex flex-col gap-1">
+                        <label className="text-[11px] font-bold text-on-surface-variant sm:hidden">Price (₹)</label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">₹</span>
+                          <input
+                            type="number"
+                            placeholder="Price"
+                            value={s.price}
+                            onChange={e => updateSize(idx, 'price', e.target.value)}
+                            className="w-full bg-surface-container-low border border-outline-variant/40 rounded-lg pl-7 pr-3 py-2.5 text-body-md text-on-surface focus:border-primary outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Delete button */}
                       {sizes.length > 1 && (
-                        <button type="button" onClick={() => removeSize(idx)} className="text-error hover:text-error-container">
-                          <span className="material-symbols-outlined text-[20px]">delete</span>
-                        </button>
+                        <div className="flex justify-end pt-2 sm:pt-0">
+                          <button
+                            type="button"
+                            onClick={() => removeSize(idx)}
+                            className="w-full sm:w-auto text-error hover:text-error-container p-2.5 sm:p-1 rounded-lg hover:bg-error-container/20 border border-error/20 sm:border-0 flex items-center justify-center gap-2 transition-colors"
+                          >
+                            <span className="material-symbols-outlined text-[18px]">delete</span>
+                            <span className="sm:hidden text-label-md font-bold">Delete</span>
+                          </button>
+                        </div>
                       )}
                     </div>
                   ))}
                 </div>
 
+                {/* Stock Widget */}
+                <div className="flex flex-col gap-3 p-4 bg-surface-container-low rounded-xl border border-outline-variant/30">
+                  <div>
+                    <p className="text-label-md font-label-md text-on-surface">Stock Quantity</p>
+                    <p className="text-[11px] text-on-surface-variant leading-none mt-0.5">Manage the available stock for this product.</p>
+                  </div>
+
+                  <div className="flex items-center gap-3 mt-1">
+                    <span className="text-body-sm font-semibold text-on-surface-variant">Quantity:</span>
+                    <div className="flex items-center bg-surface-container-lowest border border-outline-variant/40 rounded-lg p-1">
+                      <button
+                        type="button"
+                        onClick={() => setStock(prev => Math.max(0, Number(prev) - 1))}
+                        className="w-8 h-8 flex items-center justify-center bg-surface-container hover:bg-surface-container-high rounded text-on-surface-variant font-bold transition-colors"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">remove</span>
+                      </button>
+                      <input
+                        type="number"
+                        value={stock}
+                        onChange={e => {
+                          const val = e.target.value;
+                          setStock(val === '' ? 0 : Math.max(0, parseInt(val) || 0));
+                        }}
+                        className="w-16 text-center bg-transparent text-body-sm font-semibold text-on-surface outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setStock(prev => Number(prev) + 1)}
+                        className="w-8 h-8 flex items-center justify-center bg-surface-container hover:bg-surface-container-high rounded text-on-surface-variant font-bold transition-colors"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">add</span>
+                      </button>
+                    </div>
+                    {stock <= 0 && (
+                      <span className="text-xs font-bold text-error">Out of Stock Warning (product will be hidden)</span>
+                    )}
+                  </div>
+                </div>
+
                 {/* Description */}
                 <div className="flex flex-col gap-1.5">
                   <label className="text-label-md font-label-md text-on-surface">Description</label>
-                  {/* Mini Toolbar */}
-                  <div className="flex items-center gap-1 bg-surface-container rounded-t-lg border border-outline-variant/30 border-b-0 px-2 py-1.5">
-                    {['format_bold', 'format_italic', 'format_list_bulleted', 'link'].map((icon) => (
-                      <button
-                        key={icon}
-                        type="button"
-                        className="w-7 h-7 flex items-center justify-center rounded hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface transition-colors"
-                      >
-                        <span className="material-symbols-outlined text-[16px]">{icon}</span>
-                      </button>
-                    ))}
-                  </div>
                   <textarea
                     value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    rows={5}
-                    className="bg-surface-container-low border border-outline-variant/40 rounded-b-lg px-4 py-3 text-body-md font-body-md text-on-surface outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all resize-none"
+                    onChange={e => setDescription(e.target.value)}
+                    rows={4}
+                    placeholder="Describe the product, its benefits and what makes it special..."
+                    className="bg-surface-container-low border border-outline-variant/40 rounded-lg px-4 py-3 text-body-md font-body-md text-on-surface outline-none focus:border-primary transition-all resize-none"
                   />
                 </div>
 
                 {/* Ingredients & Usage */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-label-md font-label-md text-on-surface">Ingredients (Optional)</label>
-                  <textarea value={ingredients} onChange={e => setIngredients(e.target.value)} rows={3} className="bg-surface-container-low border border-outline-variant/40 rounded-lg px-4 py-3 text-body-md font-body-md text-on-surface outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all resize-none" />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-label-md font-label-md text-on-surface">Usage Instructions (Optional)</label>
-                  <textarea value={usage} onChange={e => setUsage(e.target.value)} rows={3} className="bg-surface-container-low border border-outline-variant/40 rounded-lg px-4 py-3 text-body-md font-body-md text-on-surface outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all resize-none" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-label-md font-label-md text-on-surface">Ingredients (Optional)</label>
+                    <p className="text-[11px] text-on-surface-variant">Format: Name: Benefit (one per line)</p>
+                    <textarea
+                      value={ingredients}
+                      onChange={e => setIngredients(e.target.value)}
+                      rows={4}
+                      placeholder={"Neem: Antibacterial\nTurmeric: Anti-inflammatory"}
+                      className="bg-surface-container-low border border-outline-variant/40 rounded-lg px-4 py-3 text-body-md font-body-md text-on-surface outline-none focus:border-primary transition-all resize-none"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-label-md font-label-md text-on-surface">Usage Instructions (Optional)</label>
+                    <p className="text-[11px] text-on-surface-variant">Format: Step: Detail (one per line)</p>
+                    <textarea
+                      value={usage}
+                      onChange={e => setUsage(e.target.value)}
+                      rows={4}
+                      placeholder={"Wet face: Use warm water\nApply: Gently massage"}
+                      className="bg-surface-container-low border border-outline-variant/40 rounded-lg px-4 py-3 text-body-md font-body-md text-on-surface outline-none focus:border-primary transition-all resize-none"
+                    />
+                  </div>
                 </div>
 
                 {/* Product Tags */}
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center justify-between">
                     <label className="text-label-md font-label-md text-on-surface">Product Tags</label>
-                    <span className={`px-2.5 py-0.5 rounded-full text-label-sm font-label-sm ${
-                      selectedTags.length >= 3 ? 'bg-error-container text-on-error-container' : 'bg-secondary-container text-on-secondary-container'
-                    }`}>
+                    <span className={`px-2.5 py-0.5 rounded-full text-label-sm font-label-sm ${selectedTags.length >= 3 ? 'bg-error-container text-on-error-container' : 'bg-secondary-container text-on-secondary-container'}`}>
                       {selectedTags.length}/3
                     </span>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {ALL_TAGS.map((tag) => {
+                    {ALL_TAGS.map(tag => {
                       const isSelected = selectedTags.includes(tag.id)
                       const isDisabled = !isSelected && selectedTags.length >= 3
                       return (
@@ -348,14 +684,12 @@ export default function ProductEditorPage() {
                               ? 'bg-secondary-container border-primary text-on-secondary-container'
                               : isDisabled
                               ? 'bg-surface-container-low border-outline-variant/20 text-on-surface-variant/40 cursor-not-allowed'
-                              : 'bg-surface-container-low border-outline-variant/30 text-on-surface-variant hover:border-primary/50 hover:bg-surface-container cursor-pointer'
+                              : 'bg-surface-container-low border-outline-variant/30 text-on-surface-variant hover:border-primary/50 cursor-pointer'
                           }`}
                         >
                           <span className="material-symbols-outlined text-[16px]">{tag.icon}</span>
                           {tag.label}
-                          {isSelected && (
-                            <span className="material-symbols-outlined text-[14px] ml-auto">check</span>
-                          )}
+                          {isSelected && <span className="material-symbols-outlined text-[14px] ml-auto">check</span>}
                         </button>
                       )
                     })}
@@ -367,21 +701,56 @@ export default function ProductEditorPage() {
         </main>
 
         {/* Bottom Action Bar */}
-        <div className="fixed bottom-0 left-64 right-0 bg-surface-container-lowest border-t border-outline-variant/20 px-6 py-4 flex items-center justify-between z-40">
+        <div className="fixed bottom-16 md:bottom-0 left-0 md:left-64 right-0 bg-surface-container-lowest border-t border-outline-variant/20 px-6 py-4 flex items-center justify-between z-40">
           <p className="text-label-sm font-label-sm text-on-surface-variant">
-            Last saved: Today at 09:42 AM by Admin
+            {isNew ? 'New product draft' : `Editing: ${productName}`}
           </p>
           <div className="flex gap-3">
-            <button className="px-5 py-2.5 rounded-lg text-label-md font-label-md text-on-surface-variant border border-outline-variant/30 hover:bg-surface-container transition-colors">
-              Discard Changes
-            </button>
-            <button disabled={loading} onClick={handleSave} className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-label-md font-label-md bg-primary text-on-primary hover:bg-primary-container transition-colors">
-              <span className="material-symbols-outlined text-[18px]">save</span>
-              {loading ? 'Saving...' : 'Save Product'}
+            <Link to="/products" className="px-5 py-2.5 rounded-lg text-label-md font-label-md text-on-surface-variant border border-outline-variant/30 hover:bg-surface-container transition-colors">
+              Close
+            </Link>
+            <button
+              disabled={loading || uploadingImage}
+              onClick={handleSave}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-label-md font-label-md bg-primary text-on-primary hover:opacity-90 transition-all disabled:opacity-60 shadow-sm"
+            >
+              <span className="material-symbols-outlined text-[18px]">{loading || uploadingImage ? 'hourglass_empty' : 'save'}</span>
+              {uploadingImage ? 'Uploading Image...' : loading ? 'Saving...' : 'Save'}
             </button>
           </div>
         </div>
       </div>
+
+      <ConfirmationModal
+        isOpen={showDeleteModal}
+        title="Delete Product"
+        message="Are you sure you want to delete this product? This action cannot be undone."
+        onConfirm={async () => {
+          setShowDeleteModal(false);
+          setLoading(true);
+          try {
+            const token = localStorage.getItem('adminToken') || '';
+            const res = await fetch(`http://localhost:5000/api/products/${id}`, {
+              method: 'DELETE',
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+              showToast('Product deleted successfully!');
+              setTimeout(() => {
+                navigate('/products');
+              }, 800);
+            } else {
+              showToast(data.message || 'Failed to delete product', 'error');
+            }
+          } catch(err) {
+            console.error(err);
+            showToast('Error deleting product', 'error');
+          }
+          setLoading(false);
+        }}
+        onCancel={() => setShowDeleteModal(false)}
+      />
     </div>
   )
 }

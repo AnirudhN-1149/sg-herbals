@@ -6,23 +6,30 @@ import ProductCounter from '../components/ProductCounter';
 import './HomePage.css';
 import heroImage from "../pages/screen.png";
 
-function useReveal() {
+function useReveal(deps = []) {
   useEffect(() => {
     const observer = new IntersectionObserver(
-      entries => entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('reveal-active'); }),
+      entries => entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add('reveal-active');
+        } else {
+          e.target.classList.remove('reveal-active');
+        }
+      }),
       { threshold: 0.12, rootMargin: '0px 0px -60px 0px' }
     );
     document.querySelectorAll('.reveal-left, .reveal-right, .reveal-up').forEach(el => observer.observe(el));
     return () => observer.disconnect();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
 }
 
 export default function HomePage() {
-  useReveal();
   const [recommended, setRecommended] = useState([]);
+  useReveal([recommended]);
 
   useEffect(() => {
-    fetch('http://localhost:5000/api/products?isActive=true&limit=4')
+    fetch('http://localhost:5000/api/products?active=true&limit=4')
       .then(res => res.json())
       .then(data => {
         setRecommended(data.data || []);
@@ -70,19 +77,19 @@ export default function HomePage() {
                 size: defaultSize.label,
                 cartId: `${product._id}-${defaultSize.label}`
               };
-
               return (
-                <Link to={`/product/${product._id}`} key={product._id} className="home__rec-card reveal-up" style={{ transitionDelay: `${i * 0.1}s`, textDecoration: 'none', color: 'inherit' }}>
-                  <div className="home__rec-img-wrap" style={{ position: 'relative' }}>
+                <Link to={`/product/${product._id}`} key={product._id} className="home__rec-card reveal-up" style={{ transitionDelay: `${i * 0.1}s`, textDecoration: 'none', color: 'inherit', position: 'relative' }}>
+                  {/* Tags on Top Right border (popping out) */}
+                  <div style={{ position: 'absolute', top: '-10px', right: '12px', display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-end', zIndex: 20 }}>
+                    {product.isBestSeller && (
+                      <span className="font-label-sm" style={{ backgroundColor: '#e67e22', color: 'white', padding: '4px 12px', borderRadius: '20px', boxShadow: '0 4px 8px rgba(0, 0, 0, 0.15)', textTransform: 'uppercase', fontSize: '9px', fontWeight: '800', letterSpacing: '0.05em' }}>Bestseller</span>
+                    )}
+                    {product.isNewArrival && (
+                      <span className="font-label-sm" style={{ backgroundColor: '#27ae60', color: 'white', padding: '4px 12px', borderRadius: '20px', boxShadow: '0 4px 8px rgba(0, 0, 0, 0.15)', textTransform: 'uppercase', fontSize: '9px', fontWeight: '800', letterSpacing: '0.05em' }}>New Arrival</span>
+                    )}
+                  </div>
+                  <div className="home__rec-img-wrap">
                     <img src={product.image} alt={product.name} />
-                    <div style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-end' }}>
-                      {product.isBestSeller && (
-                        <span className="font-label-sm" style={{ backgroundColor: '#154539', color: 'white', padding: '4px 8px', borderRadius: '4px' }}>Bestseller</span>
-                      )}
-                      {product.isNewArrival && (
-                        <span className="font-label-sm" style={{ backgroundColor: '#2f5d50', color: 'white', padding: '4px 8px', borderRadius: '4px' }}>New Arrival</span>
-                      )}
-                    </div>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '16px 0' }}>
                     <h4 className="font-headline-sm home__rec-name" style={{ fontWeight: 'bold' }}>{product.name}</h4>

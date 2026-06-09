@@ -1,20 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowLeft, faInfoCircle, faLock, faShoppingCart } from '@fortawesome/free-solid-svg-icons';
+import { faArrowLeft, faInfoCircle, faLock, faShoppingCart, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { useWishlist } from '../context/WishlistContext';
+import { useToast } from '../context/ToastContext';
 import ProductCounter from '../components/ProductCounter';
 import './WishlistPage.css';
 
 export default function WishlistPage() {
-  const { wishlistItems, clearWishlist, subtotal } = useWishlist();
+  const { wishlistItems, clearWishlist, removeFromWishlist, changeItemSize, subtotal } = useWishlist();
   const [form, setForm] = useState({ name: '', phone: '', pincode: '', address: '' });
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [recommended, setRecommended] = useState([]);
+  const { showToast } = useToast();
 
   useEffect(() => {
-    fetch('http://localhost:5000/api/products?active=true&limit=4')
+    fetch('http://localhost:5000/api/products?active=true&limit=12')
       .then(res => res.json())
       .then(data => {
         if (data.success) {
@@ -29,11 +31,11 @@ export default function WishlistPage() {
 
   const handleSubmit = async () => {
     if (!form.name || !form.phone || !form.address) {
-      alert("Please fill in Name, Phone, and Address.");
+      showToast("Please fill in Name, Phone, and Address.", "error");
       return;
     }
     if (wishlistItems.length === 0) {
-      alert("Your order list is empty. Please add some products first.");
+      showToast("Your order list is empty. Please add some products first.", "error");
       return;
     }
     setLoading(true);
@@ -76,9 +78,10 @@ export default function WishlistPage() {
       
       setSubmitted(true);
       clearWishlist();
+      showToast("Order placed successfully!");
     } catch (err) {
       console.error('Order submission error:', err);
-      alert('There was an error placing your order. Please try again.');
+      showToast('There was an error placing your order. Please try again.', 'error');
     } finally {
       setLoading(false);
     }
@@ -142,9 +145,42 @@ export default function WishlistPage() {
                     </div>
                     <div className="wishlist__item-info">
                       <h3 className="font-headline-sm wishlist__item-name">{item.name}</h3>
-                      <p className="font-body-sm wishlist__item-sub">Size: {item.size}</p>
-                      <div style={{ marginTop: '12px' }}>
+                      
+                      {/* Dynamic Size Selector inside Order List */}
+                      {item.sizes && item.sizes.length > 1 ? (
+                        <div style={{ marginTop: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span className="font-body-sm" style={{ color: 'var(--on-surface-variant)' }}>Size:</span>
+                          <select
+                            value={item.size}
+                            onChange={(e) => {
+                              const newSize = e.target.value;
+                              const sizeObj = item.sizes.find(s => s.label === newSize);
+                              if (sizeObj) {
+                                changeItemSize(item.cartId, newSize, sizeObj.price);
+                              }
+                            }}
+                            className="variant-select"
+                          >
+                            {item.sizes.map(s => (
+                              <option key={s.label} value={s.label}>{s.label}</option>
+                            ))}
+                          </select>
+                        </div>
+                      ) : (
+                        <p className="font-body-sm wishlist__item-sub">Size: {item.size}</p>
+                      )}
+
+                      <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '16px' }}>
                         <ProductCounter product={item} />
+                        <button
+                          onClick={() => removeFromWishlist(item.cartId)}
+                          className="wishlist__item-remove"
+                          style={{ marginTop: 0 }}
+                          title="Remove item"
+                          aria-label="Remove item"
+                        >
+                          <FontAwesomeIcon icon={faTrash} />
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -168,8 +204,13 @@ export default function WishlistPage() {
               <div className="wishlist__form-card">
                 <h2 className="font-headline-md wishlist__form-title">Delivery Details</h2>
                 <p className="font-body-sm wishlist__form-sub">
-                  Please provide your details below. This information will only be used for order delivery.
+                  Please provide your details below.
                 </p>
+                <div style={{ background: '#fff8e1', border: '1px solid #f59e0b', borderRadius: '8px', padding: '10px 14px', marginBottom: '16px' }}>
+                  <p className="font-body-sm" style={{ color: '#92400e', margin: 0 }}>
+                    <strong>Important:</strong> The information you provide here will be used directly for order delivery. Please ensure your name, phone number, and address are accurate and correct.
+                  </p>
+                </div>
 
                 <div className="wishlist__form">
                   <div className="wishlist__field">
@@ -185,7 +226,7 @@ export default function WishlistPage() {
                   </div>
                   <div className="wishlist__row">
                     <div className="wishlist__field">
-                      <label className="font-label-md wishlist__label" htmlFor="phone">Phone Number (WhatsApp)</label>
+                      <label className="font-label-md wishlist__label" htmlFor="phone">Phone Number</label>
                       <input
                         id="phone"
                         type="tel"
@@ -253,7 +294,9 @@ export default function WishlistPage() {
                   image: p.image,
                   price: defaultSize.price,
                   size: defaultSize.label,
-                  cartId: `${p._id}-${defaultSize.label}`
+                  cartId: `${p._id}-${defaultSize.label}`,
+                  sizes: p.sizes,
+                  stock: p.stock
                 };
 
                 return (

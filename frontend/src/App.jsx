@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { WishlistProvider } from './context/WishlistContext';
+import { ToastProvider } from './context/ToastContext';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import WishlistDrawer from './components/WishlistDrawer';
@@ -15,23 +16,25 @@ import Snackbar from './components/Snackbar';
 
 function App() {
   return (
-    <WishlistProvider>
-      <Router>
-        <ScrollToTop />
-        <Navbar />
-        <WishlistDrawer />
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/shop" element={<ShopPage />} />
-          <Route path="/product/:id" element={<ProductDetailPage />} />
-          <Route path="/about" element={<AboutPage />} />
-          <Route path="/wishlist" element={<WishlistPage />} />
-        </Routes>
-        <Snackbar />
-        <Footer />
-        <BottomBar />
-      </Router>
-    </WishlistProvider>
+    <ToastProvider>
+      <WishlistProvider>
+        <Router>
+          <ScrollToTop />
+          <Navbar />
+          <WishlistDrawer />
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/shop" element={<ShopPage />} />
+            <Route path="/product/:id" element={<ProductDetailPage />} />
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/wishlist" element={<WishlistPage />} />
+          </Routes>
+          <Snackbar />
+          <Footer />
+          <BottomBar />
+        </Router>
+      </WishlistProvider>
+    </ToastProvider>
   );
 }
 

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-const AVATAR_URL = 'https://lh3.googleusercontent.com/aida-public/AB6AXuDurblPnNbctla6wxeceL1hTB1gAQXLE-XHOKQ7F0rBHCP0Y0hf006vxeGB4j503PZ6dvGBsT2zzPobJxo7mcTytGylAtFCzNofsH0nblqjsFfDPa1iCPof4X-eaaBJTZNc3Dsc6alQ5v6OnQzFCXHkGlWr6_gSGeQmWz8hHkVlc6EeQph-oj3a770RcUWhqWhMzM0_2lJkIXPeLg_X57XSZNRESlNRszgg6UCDgpvNjXOT4T1dcKPPWq4yxoABEDN8FNusyFRRakfI'
+
 
 export default function AdminTopBar({ pageTitle }) {
   const [dropdownOpen, setDropdownOpen] = useState(false)
@@ -19,7 +19,7 @@ export default function AdminTopBar({ pageTitle }) {
   }, [])
 
   return (
-    <header className="w-full h-16 sticky top-0 z-40 bg-surface-container-lowest shadow-sm flex justify-between items-center px-6">
+    <header className="w-full h-16 sticky top-0 z-40 bg-surface-container-lowest shadow-sm flex justify-between items-center px-6 shrink-0">
       {/* Left: Page Title */}
       <h1 className="text-headline-sm font-headline-sm text-primary">{pageTitle}</h1>
 
@@ -34,11 +34,7 @@ export default function AdminTopBar({ pageTitle }) {
               <p className="text-label-md font-label-md text-on-surface leading-none">Subhasree Giridhari</p>
               <p className="text-label-sm font-label-sm text-on-surface-variant opacity-70 mt-0.5">Admin</p>
             </div>
-            <img
-              src={AVATAR_URL}
-              alt="Admin Avatar"
-              className="w-10 h-10 rounded-full object-cover border-2 border-primary-fixed"
-            />
+
             <span className="material-symbols-outlined text-[18px] text-on-surface-variant">expand_more</span>
           </button>
 

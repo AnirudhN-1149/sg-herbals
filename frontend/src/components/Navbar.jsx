@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faInfoCircle } from '@fortawesome/free-solid-svg-icons';
+import { faInfoCircle, faShoppingBag } from '@fortawesome/free-solid-svg-icons';
 import { useWishlist } from '../context/WishlistContext';
 import './Navbar.css';
 
@@ -43,9 +43,9 @@ export default function Navbar() {
             <FontAwesomeIcon icon={faInfoCircle} />
           </Link>
 
-          {/* Desktop: heart icon linking to order list page */}
+          {/* Desktop: bag icon linking to order list page */}
           <Link to="/wishlist" className="navbar__heart-desktop" title="Order List">
-            <span className="material-symbols-outlined">favorite</span>
+            <FontAwesomeIcon icon={faShoppingBag} style={{ fontSize: '20px' }} />
             {totalItems > 0 && <span className="navbar__badge">{totalItems}</span>}
           </Link>
         </div>

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faHome, faStore, faHeart } from '@fortawesome/free-solid-svg-icons';
+import { faHome, faStore, faShoppingBag } from '@fortawesome/free-solid-svg-icons';
 import { useWishlist } from '../context/WishlistContext';
 import './BottomBar.css';
 
@@ -23,7 +23,7 @@ export default function BottomBar() {
       </Link>
       <Link to="/wishlist" className={`bottom-nav__item ${isActive('/wishlist') ? 'bottom-nav__item--active' : ''}`}>
         <div className="bottom-nav__icon-wrap">
-          <FontAwesomeIcon icon={faHeart} />
+          <FontAwesomeIcon icon={faShoppingBag} />
           {totalItems > 0 && <span className="bottom-nav__badge">{totalItems}</span>}
         </div>
         <span>Orders</span>

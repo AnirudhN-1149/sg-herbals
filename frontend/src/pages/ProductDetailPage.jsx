@@ -2,18 +2,29 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-  faStar, faLeaf, faShieldAlt, faAward,
-  faArrowLeft, faArrowRight, faChevronDown, faCheck, faCheckCircle
+  faStar, faLeaf, faShieldAlt,
+  faArrowLeft, faArrowRight, faChevronDown, faCheck,
+  faSpa, faSeedling, faHandHoldingHeart, faShoppingBag
 } from '@fortawesome/free-solid-svg-icons';
 import ProductCounter from '../components/ProductCounter';
 
 import './ProductDetailPage.css';
+
+const TAG_MAP = {
+  'natural': { title: '100% Natural', desc: 'No synthetic additives', icon: faLeaf },
+  'chemical-free': { title: 'Chemical Free', desc: 'No toxic preservatives', icon: faShieldAlt },
+  'herbal': { title: 'Herbal Formula', desc: 'Traditional care', icon: faSpa },
+  'handmade': { title: 'Handcrafted', desc: 'Made in small batches', icon: faHandHoldingHeart },
+  'organic': { title: 'Organic Care', desc: 'Pure plant sources', icon: faSeedling },
+  'skin-safe': { title: 'Skin Safe', desc: 'Gentle on skin', icon: faShoppingBag },
+};
 
 export default function ProductDetailPage() {
   const { id } = useParams();
 
   const [product, setProduct] = useState(null);
   const [relatedProducts, setRelatedProducts] = useState([]);
+  const [recommendations, setRecommendations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedImg, setSelectedImg] = useState(0);
   const [selectedSize, setSelectedSize] = useState(0);
@@ -33,6 +44,14 @@ export default function ProductDetailPage() {
             .then(rData => {
               if (rData.success) {
                 setRelatedProducts(rData.data.filter(p => p._id !== data.data._id));
+              }
+            });
+          // Fetch generic recommendations
+          fetch(`http://localhost:5000/api/products?active=true&limit=10`)
+            .then(res => res.json())
+            .then(recData => {
+              if (recData.success) {
+                setRecommendations(recData.data.filter(p => p._id !== data.data._id).slice(0, 4));
               }
             });
         }
@@ -66,13 +85,24 @@ export default function ProductDetailPage() {
     image: product.image,
     price: sizes[selectedSize]?.price || 0,
     size: sizes[selectedSize]?.label || '',
-    cartId: `${product._id}-${sizes[selectedSize]?.label || 'std'}`
+    cartId: `${product._id}-${sizes[selectedSize]?.label || 'std'}`,
+    sizes: product.sizes,
+    stock: product.stock
   };
 
 
 
   return (
     <div className="pdp">
+      <div className="container-max" style={{ paddingTop: '24px', paddingBottom: '0' }}>
+        <Link to="/shop" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: 'var(--on-surface-variant)', fontSize: '14px', transition: 'color 0.2s' }}
+          onMouseEnter={e => e.currentTarget.style.color = 'var(--primary)'}
+          onMouseLeave={e => e.currentTarget.style.color = 'var(--on-surface-variant)'}
+        >
+          <FontAwesomeIcon icon={faArrowLeft} style={{ fontSize: '14px' }} />
+          Back to Shop
+        </Link>
+      </div>
       <section className="pdp__main container-max">
         <div className="pdp__gallery">
           <div className="pdp__thumbs">
@@ -95,12 +125,12 @@ export default function ProductDetailPage() {
         <div className="pdp__info">
           <div className="pdp__badge-row">
             {product.isBestSeller && (
-              <span className="pdp__bestseller font-label-sm">
+              <span className="pdp__bestseller font-label-sm" style={{ backgroundColor: '#e67e22', color: 'white', padding: '5px 14px', borderRadius: '20px', boxShadow: '0 4px 8px rgba(0, 0, 0, 0.12)', border: 'none', fontWeight: '800' }}>
                 <FontAwesomeIcon icon={faStar} /> BEST SELLER
               </span>
             )}
             {product.isNewArrival && (
-              <span className="pdp__bestseller font-label-sm" style={{ backgroundColor: '#2f5d50' }}>
+              <span className="pdp__bestseller font-label-sm" style={{ backgroundColor: '#27ae60', color: 'white', padding: '5px 14px', borderRadius: '20px', boxShadow: '0 4px 8px rgba(0, 0, 0, 0.12)', border: 'none', fontWeight: '800' }}>
                 <FontAwesomeIcon icon={faStar} /> NEW ARRIVAL
               </span>
             )}
@@ -125,44 +155,29 @@ export default function ProductDetailPage() {
           </div>
 
           <div className="pdp__price-box">
-            <span className="font-label-sm pdp__price-label">ESTIMATED PRICE</span>
+            <span className="font-label-sm pdp__price-label">PRODUCT PRICE</span>
             <div className="pdp__price-value">
               <span className="pdp__price font-headline-md">₹{(sizes[selectedSize]?.price || 0).toLocaleString()}.00</span>
             </div>
-            <span className="font-label-sm pdp__price-note">Adjust quantity below</span>
           </div>
 
-          {product.badges && product.badges.length > 0 && (
-            <ul className="pdp__value-props">
-              {product.badges.map((b, i) => (
-                <li key={i} className="pdp__value-prop">
-                  <FontAwesomeIcon icon={faCheckCircle} className="pdp__prop-icon" />
-                  <span className="font-body-sm" style={{ color: 'var(--on-surface-variant)' }}>{b}</span>
-                </li>
-              ))}
-            </ul>
-          )}
+
 
           <div style={{ marginTop: '24px' }}>
             <ProductCounter product={cartProduct} variant="large" />
           </div>
 
           <div className="pdp__trust">
-            <div className="pdp__trust-item">
-              <FontAwesomeIcon icon={faLeaf} className="pdp__trust-icon" />
-              <span className="pdp__trust-title font-label-sm">100% Natural</span>
-              <span className="pdp__trust-sub" style={{ fontSize: '10px', color: 'var(--on-surface-variant)' }}>No synthetic additives</span>
-            </div>
-            <div className="pdp__trust-item">
-              <FontAwesomeIcon icon={faShieldAlt} className="pdp__trust-icon" />
-              <span className="pdp__trust-title font-label-sm">Handcrafted</span>
-              <span className="pdp__trust-sub" style={{ fontSize: '10px', color: 'var(--on-surface-variant)' }}>Made in small batches</span>
-            </div>
-            <div className="pdp__trust-item">
-              <FontAwesomeIcon icon={faAward} className="pdp__trust-icon" />
-              <span className="pdp__trust-title font-label-sm">Personal Care</span>
-              <span className="pdp__trust-sub" style={{ fontSize: '10px', color: 'var(--on-surface-variant)' }}>Direct from maker</span>
-            </div>
+            {(product.tags && product.tags.length > 0 ? product.tags.slice(0, 3) : ['natural', 'handmade', 'herbal']).map((tagId) => {
+              const meta = TAG_MAP[tagId] || { title: tagId.replace('-', ' '), desc: 'Quality guaranteed', icon: faLeaf };
+              return (
+                <div key={tagId} className="pdp__trust-item">
+                  <FontAwesomeIcon icon={meta.icon} className="pdp__trust-icon" />
+                  <span className="pdp__trust-title font-label-sm">{meta.title}</span>
+                  <span className="pdp__trust-sub" style={{ fontSize: '10px', color: 'var(--on-surface-variant)' }}>{meta.desc}</span>
+                </div>
+              );
+            })}
           </div>
 
           <div className="pdp__accordions">
@@ -247,6 +262,44 @@ export default function ProductDetailPage() {
                     <p className="font-label-sm pdp__related-price">₹{defaultSize.price.toLocaleString()}.00</p>
                   </Link>
                   <div style={{ marginTop: '12px' }}>
+                    <ProductCounter product={rc} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {recommendations.length > 0 && (
+        <section className="pdp__recommendations container-max" style={{ borderTop: '1px solid rgba(192,200,196,0.2)', paddingTop: '64px', paddingBottom: '64px' }}>
+          <div style={{ marginBottom: '32px' }}>
+            <h2 className="font-display-lg pdp__related-title">Recommended for You</h2>
+            <p className="font-body-md" style={{ color: 'var(--on-surface-variant)' }}>Other popular natural botanical products you might love.</p>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '24px' }}>
+            {recommendations.map(rp => {
+              const defaultSize = rp.sizes && rp.sizes.length > 0 ? rp.sizes[0] : { label: '1 unit', price: 0 };
+              const rc = {
+                id: rp._id,
+                name: rp.name,
+                image: rp.image,
+                price: defaultSize.price,
+                size: defaultSize.label,
+                cartId: `${rp._id}-${defaultSize.label}`,
+                sizes: rp.sizes,
+                stock: rp.stock
+              };
+              return (
+                <div key={rp._id} className="pdp__related-card" style={{ minWidth: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div className="pdp__related-img-wrap" style={{ margin: 0, aspectRatio: '4/5' }}>
+                    <img src={rp.image} alt={rp.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </div>
+                  <Link to={`/product/${rp._id}`}>
+                    <h4 className="font-headline-sm pdp__related-name" style={{ fontWeight: 'bold', fontSize: '16px', margin: 0 }}>{rp.name}</h4>
+                    <p className="font-label-sm pdp__related-price" style={{ margin: 0 }}>₹{defaultSize.price.toLocaleString()}.00</p>
+                  </Link>
+                  <div style={{ marginTop: 'auto', paddingTop: '8px' }}>
                     <ProductCounter product={rc} />
                   </div>
                 </div>

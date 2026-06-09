@@ -3,13 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes, faMinus, faPlus, faTrash, faInfoCircle } from '@fortawesome/free-solid-svg-icons';
 import { useWishlist } from '../context/WishlistContext';
+import { useToast } from '../context/ToastContext';
 import './WishlistDrawer.css';
 
 const LOGO = "https://lh3.googleusercontent.com/aida-public/AB6AXuDQIhINItXX0r6qrws7vPHRf-Xa6Rv7pIXmz-ETDZD02S7CoUw_ZEH2mRyQfohtEiPLB0X6RQb8OUWHoOv5OCQK7mbrSo64l1sfLZvHkgdxS18CbFbRNeuYdwKbnYU9I8VrLqyTxtvLNLOlQ_mmXv2AV0QU0_3vt1FuPQgl26usQUv1zuj7sGeU1vpZW6CtIiVGYaBs9KrtcKQas8NbQmwUiEinGVFKDG-1cgmHYRu8dg2t6ZhM5JkCuIgzelQmsj7pYEdeec327weG";
 
 export default function WishlistDrawer() {
-  const { wishlistItems, isDrawerOpen, setIsDrawerOpen, updateQuantity, removeFromWishlist, subtotal } = useWishlist();
+  const { wishlistItems, isDrawerOpen, setIsDrawerOpen, updateQuantity, removeFromWishlist, changeItemSize, subtotal } = useWishlist();
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
   const handleViewOrderList = () => {
     setIsDrawerOpen(false);
@@ -47,36 +49,73 @@ export default function WishlistDrawer() {
               </button>
             </div>
           ) : (
-            wishlistItems.map(item => (
-              <div key={item.cartId || item.id} className="drawer__item">
-                <div className="drawer__item-img">
-                  <img src={item.image} alt={item.name} />
-                </div>
-                <div className="drawer__item-info">
-                  <div className="drawer__item-top">
-                    <div>
-                      <h3 className="font-headline-sm drawer__item-name">{item.name}</h3>
-                      <p className="font-body-sm drawer__item-sub">{item.size}</p>
-                    </div>
-                    <span className="font-label-md drawer__item-price">₹{(item.price * item.quantity).toLocaleString()}</span>
+            wishlistItems.map(item => {
+              const stockLimit = item.stock !== undefined && item.stock !== null ? item.stock : 10;
+              const isPlusDisabled = item.quantity >= stockLimit;
+              
+              return (
+                <div key={item.cartId || item.id} className="drawer__item">
+                  <div className="drawer__item-img">
+                    <img src={item.image} alt={item.name} />
                   </div>
-                  <div className="drawer__item-bottom">
-                    <div className="drawer__qty">
-                      <button onClick={() => updateQuantity(item.cartId || item.id, item.quantity - 1)}>
-                        <FontAwesomeIcon icon={faMinus} />
-                      </button>
-                      <span className="font-label-md">{item.quantity}</span>
-                      <button onClick={() => updateQuantity(item.cartId || item.id, item.quantity + 1)}>
-                        <FontAwesomeIcon icon={faPlus} />
+                  <div className="drawer__item-info">
+                    <div className="drawer__item-top">
+                      <div>
+                        <h3 className="font-headline-sm drawer__item-name">{item.name}</h3>
+                        
+                        {/* Dynamic Size Dropdown inside Drawer */}
+                        {item.sizes && item.sizes.length > 1 ? (
+                          <div style={{ marginTop: '2px' }}>
+                            <select
+                              value={item.size}
+                              onChange={(e) => {
+                                const newSize = e.target.value;
+                                const sizeObj = item.sizes.find(s => s.label === newSize);
+                                if (sizeObj) {
+                                  changeItemSize(item.cartId || item.id, newSize, sizeObj.price);
+                                }
+                              }}
+                              className="variant-select"
+                            >
+                              {item.sizes.map(s => (
+                                <option key={s.label} value={s.label}>{s.label}</option>
+                              ))}
+                            </select>
+                          </div>
+                        ) : (
+                          <p className="font-body-sm drawer__item-sub">{item.size}</p>
+                        )}
+                      </div>
+                      <span className="font-label-md drawer__item-price">₹{(item.price * item.quantity).toLocaleString()}</span>
+                    </div>
+                    <div className="drawer__item-bottom">
+                      <div className="drawer__qty">
+                        <button onClick={() => updateQuantity(item.cartId || item.id, item.quantity - 1)}>
+                          <FontAwesomeIcon icon={faMinus} />
+                        </button>
+                        <span className="font-label-md">{item.quantity}</span>
+                        <button 
+                          onClick={() => {
+                            if (item.quantity >= stockLimit) {
+                              showToast(`Cannot add more items. Only ${stockLimit} units available.`, 'error');
+                              return;
+                            }
+                            updateQuantity(item.cartId || item.id, item.quantity + 1);
+                          }}
+                          disabled={isPlusDisabled}
+                          style={isPlusDisabled ? { opacity: 0.3, cursor: 'not-allowed' } : {}}
+                        >
+                          <FontAwesomeIcon icon={faPlus} />
+                        </button>
+                      </div>
+                      <button className="drawer__remove" onClick={() => removeFromWishlist(item.cartId || item.id)}>
+                        <FontAwesomeIcon icon={faTrash} />
                       </button>
                     </div>
-                    <button className="drawer__remove" onClick={() => removeFromWishlist(item.cartId || item.id)}>
-                      <FontAwesomeIcon icon={faTrash} />
-                    </button>
                   </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
 
