@@ -10,11 +10,11 @@ const routes = require('./src/routes/index');
 const app = express();
 
 // Middleware
+const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').trim().replace(/\/$/, '');
+const adminUrl = (process.env.ADMIN_URL || 'http://localhost:5173').trim().replace(/\/$/, '');
+
 app.use(cors({
-  origin: [
-    process.env.FRONTEND_URL || 'http://localhost:3000',
-    process.env.ADMIN_URL || 'http://localhost:5173',
-  ],
+  origin: [frontendUrl, adminUrl],
   credentials: true,
 }));
 app.use(express.json({ limit: '10mb' }));
