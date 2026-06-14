@@ -318,5 +318,19 @@
     gap: 12px;
     justify-content: space-between;
   }
+  .shop__sort-wrap {
+    min-width: 0;
+  }
+  .shop__sort {
+    width: 100% !important;
+  }
 }
+
+@media (max-width: 480px) {
+  .shop__filters-mobile {
+    max-width: 315px;
+    margin: 0;
+  }
+}
+
 
