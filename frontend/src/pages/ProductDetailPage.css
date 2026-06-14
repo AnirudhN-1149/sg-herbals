@@ -243,89 +243,7 @@
 }
 .pdp__step { line-height: 1.6; }
 
-/* Related */
-.pdp__related {
-  padding: 80px 0;
-  background: rgba(238,238,238,0.2);
-  overflow: hidden;
-}
-.pdp__related-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  margin-bottom: 48px;
-}
-.pdp__related-title { color: var(--primary); }
-.pdp__related-nav { display: flex; gap: 16px; }
-.pdp__nav-btn {
-  width: 48px; height: 48px;
-  border-radius: 50%;
-  border: 1px solid var(--outline-variant);
-  background: white;
-  cursor: pointer;
-  color: var(--on-surface-variant);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-}
-.pdp__nav-btn:hover { background: var(--primary); color: white; border-color: var(--primary); }
-.pdp__related-scroll {
-  display: flex;
-  gap: 24px;
-  overflow-x: auto;
-  padding: 0 40px;
-  scroll-snap-type: x mandatory;
-}
-.pdp__related-card {
-  min-width: 320px;
-  scroll-snap-align: start;
-  cursor: pointer;
-}
-.pdp__related-img-wrap {
-  aspect-ratio: 4/5;
-  border-radius: 12px;
-  overflow: hidden;
-  background: var(--surface-container-low);
-  margin-bottom: 16px;
-  position: relative;
-  box-shadow: 0px 2px 8px rgba(21, 69, 57, 0.05);
-}
-.pdp__related-img-wrap img {
-  width: 100%; height: 100%;
-  object-fit: cover;
-  transition: transform 0.5s;
-}
-.pdp__related-card:hover .pdp__related-img-wrap img { transform: scale(1.05); }
-.pdp__related-add {
-  position: absolute;
-  bottom: 16px; left: 16px; right: 16px;
-  background: rgba(255,255,255,0.9);
-  backdrop-filter: blur(4px);
-  color: var(--primary);
-  padding: 12px;
-  border-radius: 8px;
-  border: none;
-  cursor: pointer;
-  opacity: 0;
-  transform: translateY(8px);
-  transition: all 0.3s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  font-family: 'Inter', sans-serif;
-  font-weight: 600;
-  font-size: 12px;
-  letter-spacing: 0.05em;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
-.pdp__related-card:hover .pdp__related-add {
-  opacity: 1;
-  transform: translateY(0);
-}
-.pdp__related-name { color: var(--primary); margin-bottom: 4px; }
-.pdp__related-price { color: var(--on-surface-variant); margin-bottom: 8px; }
+
 
 @media (max-width: 1024px) {
   .pdp__main { gap: 40px; }
@@ -340,7 +258,5 @@
   .pdp__thumb { width: 60px; height: 60px; }
   .pdp__gallery { flex-direction: column-reverse; }
   .pdp__trust { grid-template-columns: 1fr 1fr 1fr; }
-  .pdp__related-scroll { padding: 0 16px; }
-  .pdp__related-card { min-width: 260px; }
-  .pdp__related-header { flex-direction: column; align-items: flex-start; gap: 16px; }
+
 }

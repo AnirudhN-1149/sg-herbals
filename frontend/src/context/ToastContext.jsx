@@ -31,18 +31,22 @@ export function ToastProvider({ children }) {
             className={`toast-item toast-item--${t.type}`}
           >
             <div className="toast-item__content">
-              <span className="toast-item__icon">
-                {t.type === 'error' ? '✕' : '✓'}
-              </span>
+              {t.type !== 'info' && (
+                <span className="toast-item__icon">
+                  {t.type === 'error' ? '✕' : '✓'}
+                </span>
+              )}
               <p className="toast-item__message">{t.message}</p>
             </div>
-            <button
-              onClick={() => removeToast(t.id)}
-              className="toast-item__close"
-              aria-label="Close notification"
-            >
-              ✕
-            </button>
+            {t.type !== 'info' && (
+              <button
+                onClick={() => removeToast(t.id)}
+                className="toast-item__close"
+                aria-label="Close notification"
+              >
+                ✕
+              </button>
+            )}
           </div>
         ))}
       </div>

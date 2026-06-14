@@ -1,7 +1,8 @@
 import React from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faLeaf, faEye, faHandshake, faQuoteLeft } from '@fortawesome/free-solid-svg-icons';
-import { aboutHeroImage, heritageImage, founderImage } from '../data/products';
+import balmImage from '../assets/balm.png';
+import aboutSoapImage from '../assets/hero.png';
 import './AboutPage.css';
 
 export default function AboutPage() {
@@ -9,17 +10,18 @@ export default function AboutPage() {
     <div className="about">
       {/* Hero */}
       <section className="about__hero">
-        <div className="about__hero-bg">
-          <img src={aboutHeroImage} alt="Our Story" />
-          <div className="about__hero-overlay" />
+        <div className="about__hero-img-wrap">
+          <img src={balmImage} alt="Our Story" />
         </div>
-        <div className="about__hero-content container-max">
-          <span className="about__pill font-label-md">ESTABLISHED IN NATURE</span>
-          <h1 className="font-display-lg about__hero-title">Our Story</h1>
-          <p className="font-body-lg about__hero-sub">
-            Born from the quiet wisdom of age-old herbal traditions, SG Herbals bridges the gap between plant knowledge and simple, honest handcrafted care.
-          </p>
-          <button className="about__hero-btn font-label-md">Explore Our Products</button>
+        <div className="container-max w-full">
+          <div className="about__hero-content">
+            <span className="about__pill font-label-md">ESTABLISHED IN NATURE</span>
+            <h1 className="font-display-lg about__hero-title">Our Story</h1>
+            <p className="font-body-lg about__hero-sub">
+              Born from the quiet wisdom of age-old herbal traditions, SG Herbals bridges the gap between plant knowledge and simple, honest handcrafted care.
+            </p>
+            <button className="about__hero-btn font-label-md">Explore Our Products</button>
+          </div>
         </div>
       </section>
 
@@ -27,7 +29,7 @@ export default function AboutPage() {
       <section className="about__heritage">
         <div className="about__heritage-inner container-max">
           <div className="about__heritage-img">
-            <img src={heritageImage} alt="From Tradition to Craft" />
+            <img src={aboutSoapImage} alt="From Tradition to Craft" />
           </div>
           <div className="about__heritage-text">
             <h2 className="font-headline-lg about__section-title">From Tradition to Craft</h2>
@@ -101,12 +103,14 @@ export default function AboutPage() {
           <p className="font-headline-lg about__founder-quote">
             "I believe that our skin deserves the same respect we give to the earth itself. Every bar of soap, every oil I craft is a small act of care."
           </p>
+          <div className="about__founder-divider">
+            <span className="about__divider-line"></span>
+            <FontAwesomeIcon icon={faLeaf} className="about__divider-leaf" />
+            <span className="about__divider-line"></span>
+          </div>
           <div className="about__founder-profile">
-            <div className="about__founder-avatar">
-              <img src={founderImage} alt="Founder" />
-            </div>
-            <span className="font-label-md about__founder-name">Subhasree Giridhari</span>
-            <span className="font-body-sm about__founder-role">Founder & Creator</span>
+            <span className="about__founder-name">Subhasree Giridhari</span>
+            <span className="about__founder-role">Founder & Creator</span>
           </div>
         </div>
       </section>

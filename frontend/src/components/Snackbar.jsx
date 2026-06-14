@@ -2,7 +2,7 @@ import React from 'react';
 import { useLocation } from 'react-router-dom';
 import { useWishlist } from '../context/WishlistContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faShoppingBag, faArrowRight } from '@fortawesome/free-solid-svg-icons';
+import { faArrowRight, faShoppingBag } from '@fortawesome/free-solid-svg-icons';
 import './Snackbar.css';
 
 export default function Snackbar() {

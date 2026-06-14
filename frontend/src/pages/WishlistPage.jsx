@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowLeft, faInfoCircle, faLock, faShoppingCart, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { faArrowLeft, faLock, faShoppingCart, faTrash, faInfoCircle } from '@fortawesome/free-solid-svg-icons';
 import { useWishlist } from '../context/WishlistContext';
 import { useToast } from '../context/ToastContext';
 import ProductCounter from '../components/ProductCounter';
 import './WishlistPage.css';
+
+const rawApiUrl = process.env.REACT_APP_API_URL;
+const API_URL = (rawApiUrl && rawApiUrl.trim() ? rawApiUrl.trim() : 'http://localhost:5000').replace(/\/$/, '');
 
 export default function WishlistPage() {
   const { wishlistItems, clearWishlist, removeFromWishlist, changeItemSize, subtotal } = useWishlist();
@@ -16,7 +19,7 @@ export default function WishlistPage() {
   const { showToast } = useToast();
 
   useEffect(() => {
-    fetch('http://localhost:5000/api/products?active=true&limit=12')
+    fetch(`${API_URL}/api/products?active=true&limit=12`)
       .then(res => res.json())
       .then(data => {
         if (data.success) {
@@ -62,7 +65,7 @@ export default function WishlistPage() {
         shippingFee: 0
       };
       
-      const response = await fetch('http://localhost:5000/api/orders', {
+      const response = await fetch(`${API_URL}/api/orders`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

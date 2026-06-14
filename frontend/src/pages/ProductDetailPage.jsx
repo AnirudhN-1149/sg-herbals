@@ -1,53 +1,48 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faStar, faLeaf, faShieldAlt,
-  faArrowLeft, faArrowRight, faChevronDown, faCheck,
-  faSpa, faSeedling, faHandHoldingHeart, faShoppingBag
+  faArrowLeft, faChevronDown, faCheck,
+  faSpa,
+  faHand, faTree, faHeart
 } from '@fortawesome/free-solid-svg-icons';
 import ProductCounter from '../components/ProductCounter';
 
 import './ProductDetailPage.css';
+import './ShopPage.css';
 
 const TAG_MAP = {
   'natural': { title: '100% Natural', desc: 'No synthetic additives', icon: faLeaf },
   'chemical-free': { title: 'Chemical Free', desc: 'No toxic preservatives', icon: faShieldAlt },
   'herbal': { title: 'Herbal Formula', desc: 'Traditional care', icon: faSpa },
-  'handmade': { title: 'Handcrafted', desc: 'Made in small batches', icon: faHandHoldingHeart },
-  'organic': { title: 'Organic Care', desc: 'Pure plant sources', icon: faSeedling },
-  'skin-safe': { title: 'Skin Safe', desc: 'Gentle on skin', icon: faShoppingBag },
+  'handmade': { title: 'Handcrafted', desc: 'Made in small batches', icon: faHand },
+  'organic': { title: 'Organic Care', desc: 'Pure plant sources', icon: faTree },
+  'skin-safe': { title: 'Skin Safe', desc: 'Gentle on skin', icon: faHeart },
 };
+
+const rawApiUrl = process.env.REACT_APP_API_URL;
+const API_URL = (rawApiUrl && rawApiUrl.trim() ? rawApiUrl.trim() : 'http://localhost:5000').replace(/\/$/, '');
 
 export default function ProductDetailPage() {
   const { id } = useParams();
 
   const [product, setProduct] = useState(null);
-  const [relatedProducts, setRelatedProducts] = useState([]);
   const [recommendations, setRecommendations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedImg, setSelectedImg] = useState(0);
   const [selectedSize, setSelectedSize] = useState(0);
   const [openSection, setOpenSection] = useState(null);
-  const scrollRef = useRef(null);
 
   useEffect(() => {
     setLoading(true);
-    fetch(`http://localhost:5000/api/products/${id}`)
+    fetch(`${API_URL}/api/products/${id}`)
       .then(res => res.json())
       .then(data => {
         if (data.success) {
           setProduct(data.data);
-          // Fetch related
-          fetch(`http://localhost:5000/api/products?active=true&limit=3&category=${data.data.category}`)
-            .then(res => res.json())
-            .then(rData => {
-              if (rData.success) {
-                setRelatedProducts(rData.data.filter(p => p._id !== data.data._id));
-              }
-            });
           // Fetch generic recommendations
-          fetch(`http://localhost:5000/api/products?active=true&limit=10`)
+           fetch(`${API_URL}/api/products?active=true&limit=10`)
             .then(res => res.json())
             .then(recData => {
               if (recData.success) {
@@ -125,7 +120,7 @@ export default function ProductDetailPage() {
         <div className="pdp__info">
           <div className="pdp__badge-row">
             {product.isBestSeller && (
-              <span className="pdp__bestseller font-label-sm" style={{ backgroundColor: '#e67e22', color: 'white', padding: '5px 14px', borderRadius: '20px', boxShadow: '0 4px 8px rgba(0, 0, 0, 0.12)', border: 'none', fontWeight: '800' }}>
+              <span className="pdp__bestseller font-label-sm" style={{ backgroundColor: '#2b6cb0', color: 'white', padding: '5px 14px', borderRadius: '20px', boxShadow: '0 4px 8px rgba(0, 0, 0, 0.12)', border: 'none', fontWeight: '800' }}>
                 <FontAwesomeIcon icon={faStar} /> BEST SELLER
               </span>
             )}
@@ -225,51 +220,6 @@ export default function ProductDetailPage() {
         </div>
       </section>
 
-      {relatedProducts.length > 0 && (
-        <section className="pdp__related">
-          <div className="pdp__related-header container-max">
-            <div>
-              <h2 className="font-display-lg pdp__related-title">Suggested Pairings</h2>
-              <p className="font-body-md" style={{ color: 'var(--on-surface-variant)' }}>Products that go great together.</p>
-            </div>
-            <div className="pdp__related-nav">
-              <button onClick={() => scrollRef.current?.scrollBy({ left: -350, behavior: 'smooth' })} className="pdp__nav-btn">
-                <FontAwesomeIcon icon={faArrowLeft} />
-              </button>
-              <button onClick={() => scrollRef.current?.scrollBy({ left: 350, behavior: 'smooth' })} className="pdp__nav-btn">
-                <FontAwesomeIcon icon={faArrowRight} />
-              </button>
-            </div>
-          </div>
-          <div className="pdp__related-scroll hide-scrollbar" ref={scrollRef}>
-            {relatedProducts.map(rp => {
-              const defaultSize = rp.sizes && rp.sizes.length > 0 ? rp.sizes[0] : { label: '1 unit', price: 0 };
-              const rc = {
-                id: rp._id,
-                name: rp.name,
-                image: rp.image,
-                price: defaultSize.price,
-                size: defaultSize.label,
-                cartId: `${rp._id}-${defaultSize.label}`
-              };
-              return (
-                <div key={rp._id} className="pdp__related-card">
-                  <div className="pdp__related-img-wrap">
-                    <img src={rp.image} alt={rp.name} />
-                  </div>
-                  <Link to={`/product/${rp._id}`}>
-                    <h4 className="font-headline-sm pdp__related-name">{rp.name}</h4>
-                    <p className="font-label-sm pdp__related-price">₹{defaultSize.price.toLocaleString()}.00</p>
-                  </Link>
-                  <div style={{ marginTop: '12px' }}>
-                    <ProductCounter product={rc} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
 
       {recommendations.length > 0 && (
         <section className="pdp__recommendations container-max" style={{ borderTop: '1px solid rgba(192,200,196,0.2)', paddingTop: '64px', paddingBottom: '64px' }}>
@@ -277,7 +227,7 @@ export default function ProductDetailPage() {
             <h2 className="font-display-lg pdp__related-title">Recommended for You</h2>
             <p className="font-body-md" style={{ color: 'var(--on-surface-variant)' }}>Other popular natural botanical products you might love.</p>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '24px' }}>
+          <div className="shop__grid">
             {recommendations.map(rp => {
               const defaultSize = rp.sizes && rp.sizes.length > 0 ? rp.sizes[0] : { label: '1 unit', price: 0 };
               const rc = {
@@ -291,18 +241,34 @@ export default function ProductDetailPage() {
                 stock: rp.stock
               };
               return (
-                <div key={rp._id} className="pdp__related-card" style={{ minWidth: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <div className="pdp__related-img-wrap" style={{ margin: 0, aspectRatio: '4/5' }}>
-                    <img src={rp.image} alt={rp.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <Link to={`/product/${rp._id}`} key={rp._id} className="shop__card" style={{ textDecoration: 'none', color: 'inherit', position: 'relative' }}>
+                  {/* Tags on Top Right border (popping out) */}
+                  <div style={{ position: 'absolute', top: '-10px', right: '12px', display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-end', zIndex: 20 }}>
+                    {rp.isBestSeller && (
+                      <span className="font-label-sm" style={{ backgroundColor: '#2b6cb0', color: 'white', padding: '4px 12px', borderRadius: '20px', boxShadow: '0 4px 8px rgba(0, 0, 0, 0.15)', textTransform: 'uppercase', fontSize: '9px', fontWeight: '800', letterSpacing: '0.05em' }}>Bestseller</span>
+                    )}
+                    {rp.isNewArrival && (
+                      <span className="font-label-sm" style={{ backgroundColor: '#27ae60', color: 'white', padding: '4px 12px', borderRadius: '20px', boxShadow: '0 4px 8px rgba(0, 0, 0, 0.15)', textTransform: 'uppercase', fontSize: '9px', fontWeight: '800', letterSpacing: '0.05em' }}>New Arrival</span>
+                    )}
                   </div>
-                  <Link to={`/product/${rp._id}`}>
-                    <h4 className="font-headline-sm pdp__related-name" style={{ fontWeight: 'bold', fontSize: '16px', margin: 0 }}>{rp.name}</h4>
-                    <p className="font-label-sm pdp__related-price" style={{ margin: 0 }}>₹{defaultSize.price.toLocaleString()}.00</p>
-                  </Link>
-                  <div style={{ marginTop: 'auto', paddingTop: '8px' }}>
-                    <ProductCounter product={rc} />
+                  <div className="shop__card-img-wrap" style={{ position: 'relative' }}>
+                    <img src={rp.image} alt={rp.name} className="shop__card-img" />
+                    
+                    {/* Product Counter overlay */}
+                    <div style={{ position: 'absolute', bottom: '12px', right: '12px', zIndex: 10 }}>
+                      <ProductCounter product={rc} />
+                    </div>
                   </div>
-                </div>
+                  <div className="shop__card-body" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <h3 className="font-headline-sm shop__card-name" style={{ fontWeight: 'bold' }}>{rp.name}</h3>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                      <p className="font-headline-sm shop__card-price" style={{ fontWeight: 'bold', margin: 0 }}>
+                        ₹{defaultSize.price.toLocaleString()}
+                      </p>
+                      <span className="font-body-sm" style={{ color: 'var(--on-surface-variant)' }}>{defaultSize.label}</span>
+                    </div>
+                  </div>
+                </Link>
               );
             })}
           </div>

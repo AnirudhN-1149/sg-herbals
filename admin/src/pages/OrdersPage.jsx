@@ -5,6 +5,9 @@ import AdminTopBar from '../components/AdminTopBar'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import ConfirmationModal from '../components/ConfirmationModal'
+const rawApiUrl = import.meta.env.VITE_API_URL;
+const API_URL = (rawApiUrl && rawApiUrl.trim() ? rawApiUrl.trim() : 'http://localhost:5000').replace(/\/$/, '');
+
 const TABS = ['all', 'pending', 'completed']
 
 export default function OrdersPage() {
@@ -38,7 +41,7 @@ export default function OrdersPage() {
   const fetchOrders = async () => {
     try {
       const token = localStorage.getItem('adminToken') || '';
-      const res = await fetch('http://localhost:5000/api/orders?limit=100', {
+      const res = await fetch(`${API_URL}/api/orders?limit=100`, {
         headers: { 'Authorization': `Bearer ${token}` }
       }); // Fetch enough to filter client side for simplicity, or implement server-side pagination
       const data = await res.json()
@@ -52,7 +55,7 @@ export default function OrdersPage() {
 
   const fetchStats = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/dashboard/stats');
+      const res = await fetch(`${API_URL}/api/dashboard/stats`);
       const data = await res.json()
       if (data.success) {
         setStats(data.data)
@@ -60,6 +63,15 @@ export default function OrdersPage() {
     } catch(err) {
       console.error(err)
     }
+  }
+
+  const handleRefresh = () => {
+    setSearch('')
+    setDateFilter('')
+    setActiveTab('all')
+    setCurrentPage(1)
+    fetchOrders()
+    fetchStats()
   }
 
   let filtered = activeTab === 'all' ? orders : orders.filter((o) => o.status === activeTab)
@@ -86,7 +98,7 @@ export default function OrdersPage() {
   async function handleStatusChange(orderId, newStatus) {
     try {
       const token = localStorage.getItem('adminToken') || '';
-      const res = await fetch(`http://localhost:5000/api/orders/${orderId}/status`, {
+      const res = await fetch(`${API_URL}/api/orders/${orderId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ status: newStatus })
@@ -100,28 +112,114 @@ export default function OrdersPage() {
     }
   }
 
-  function exportPDF() {
+  const preloadImage = (url) => {
+    return new Promise((resolve) => {
+      if (!url) return resolve(null);
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.src = url;
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.naturalWidth;
+          canvas.height = img.naturalHeight;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          resolve({
+            dataUrl: canvas.toDataURL('image/jpeg'),
+            width: img.naturalWidth,
+            height: img.naturalHeight
+          });
+        } catch (err) {
+          resolve(null);
+        }
+      };
+      img.onerror = () => resolve(null);
+    });
+  };
+
+  async function exportPDF() {
     const doc = new jsPDF()
+    const logoUrl = '/logo_sg.png';
+    const logoBase64 = await preloadImage(logoUrl);
 
-    // Brand header
+    // Draw Header with light color matching logo background
+    doc.setFillColor(245, 247, 245);
+    doc.rect(0, 0, 210, 30, 'F');
+
+    let logoW = 20;
+    // Draw Logo
+    if (logoBase64 && logoBase64.dataUrl) {
+      const logoRatio = logoBase64.width / logoBase64.height;
+      let logoH = 20;
+      if (logoRatio > 25/20) {
+        logoW = 25;
+        logoH = 25 / logoRatio;
+      } else {
+        logoW = 20 * logoRatio;
+      }
+      const logoY = 5 + (20 - logoH) / 2;
+      doc.addImage(logoBase64.dataUrl, 'JPEG', 14, logoY, logoW, logoH);
+    }
+
+    // Brand Info
+    const textX = 14 + logoW + 4;
+    doc.setFont("Times-Roman", "bold");
+    doc.setFontSize(22);
+    doc.setTextColor(21, 69, 57);
+    doc.text("SG HERBALS", textX, 17);
+
+    // Tagline: "Handcrafted Herbal Skin and Hair Care"
+    doc.setFont("Times-Roman", "italic");
+    doc.setFontSize(9);
+    doc.setTextColor(74, 101, 79);
+    doc.text("Handcrafted Herbal Skin and Hair Care", textX, 24);
+
+    // Subhasree & Phone on the right
+    doc.setFont("Times-Roman", "bold");
+    doc.setFontSize(11.5);
+    doc.setTextColor(21, 69, 57);
+    doc.text("Subhasree Giridhari", 145, 13);
+    doc.setFontSize(11);
+    doc.text("Phone: 9940184032", 145, 19);
+
+    // Reset text color for body
+    doc.setTextColor(33, 33, 33)
+
+    // Centered Bolder Heading in the body top as the first line (increased font size + gap below)
+    doc.setFont("Helvetica", "bold");
+    doc.setFontSize(20);
+    doc.setTextColor(21, 69, 57);
+    doc.text("ORDER SUMMARY REPORT", 105, 45, { align: "center" });
+
+    // Premium Metrics Summary Card (Shifted to Y = 57 for gap)
+    doc.setFillColor(245, 248, 246)
+    doc.rect(14, 57, 182, 18, 'F')
+    doc.setDrawColor(220, 225, 222)
+    doc.setLineWidth(0.3)
+    doc.rect(14, 57, 182, 18, 'S')
+
+    // Left green border highlight for the card
     doc.setFillColor(21, 69, 57)
-    doc.rect(0, 0, 210, 20, 'F')
-
+    doc.rect(14, 57, 2, 18, 'F')
+    
+    doc.setFont("helvetica", "bold")
+    doc.setFontSize(8.5)
+    doc.setTextColor(74, 101, 79)
+    doc.text("TOTAL ORDERS SHOWN", 22, 63)
     doc.setFont("helvetica", "bold")
     doc.setFontSize(14)
-    doc.setTextColor(255, 255, 255)
-    doc.text("SG HERBALS", 14, 13)
+    doc.setTextColor(21, 69, 57)
+    doc.text(`${filtered.length}`, 22, 71)
 
     doc.setFont("helvetica", "bold")
-    doc.setFontSize(11)
-    doc.text("ORDERS SUMMARY REPORT", 130, 13)
-
-    // Meta info
+    doc.setFontSize(8.5)
+    doc.setTextColor(74, 101, 79)
+    doc.text("REPORT GENERATED ON", 110, 63)
     doc.setFont("helvetica", "normal")
-    doc.setFontSize(9)
-    doc.setTextColor(100, 100, 100)
-    doc.text(`Generated on: ${new Date().toLocaleString('en-IN')}`, 14, 28)
-    doc.text(`Total Orders Shown: ${filtered.length}`, 14, 33)
+    doc.setFontSize(9.5)
+    doc.setTextColor(33, 33, 33)
+    doc.text(`${new Date().toLocaleString('en-IN')}`, 110, 71)
 
     const tableData = filtered.map(o => [
       o.orderNumber,
@@ -132,10 +230,11 @@ export default function OrdersPage() {
       o.status.toUpperCase()
     ])
 
+    const startTableY = 82;
     autoTable(doc, {
       head: [['Order ID', 'Customer Name', 'Phone Number', 'Order Date', 'Total Amount', 'Status']],
       body: tableData,
-      startY: 38,
+      startY: startTableY,
       theme: 'striped',
       headStyles: {
         fillColor: [21, 69, 57],
@@ -162,17 +261,10 @@ export default function OrdersPage() {
     <div className="flex h-screen overflow-hidden bg-surface">
       <AdminSidebar />
 
-      <div className="flex-1 flex flex-col overflow-auto md:ml-64 pb-16 md:pb-0">
+      <div className="flex-1 flex flex-col overflow-auto lg:ml-64 pb-16 lg:pb-0">
         <AdminTopBar pageTitle="Order Management" />
 
         <main className="flex-1 p-6 space-y-6">
-          {/* Welcome Banner */}
-          <div>
-            <h2 className="text-headline-lg font-headline-lg text-on-surface">Welcome back, Alex.</h2>
-            <p className="text-body-md font-body-md text-on-surface-variant mt-1">
-              Here's what's happening with your store today.
-            </p>
-          </div>
 
           {/* Stats Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
@@ -270,7 +362,7 @@ export default function OrdersPage() {
             </div>
 
             <div className="flex gap-2 w-full sm:w-auto justify-start sm:justify-end sm:ml-auto">
-              <button onClick={fetchOrders} className="flex items-center gap-2 px-4 py-2 bg-surface-container rounded-lg text-label-md font-label-md text-on-surface-variant border border-outline-variant/30 hover:bg-surface-container-high transition-colors">
+              <button onClick={handleRefresh} className="flex items-center gap-2 px-4 py-2 bg-surface-container rounded-lg text-label-md font-label-md text-on-surface-variant border border-outline-variant/30 hover:bg-surface-container-high transition-colors">
                 <span className="material-symbols-outlined text-[18px]">refresh</span>
                 Refresh
               </button>
@@ -319,7 +411,7 @@ export default function OrdersPage() {
                       <div className="flex justify-between items-start">
                         <span className="text-body-md font-semibold text-primary">{order.orderNumber}</span>
                         <span className="text-[11px] font-medium text-on-surface-variant bg-surface-container px-2 py-0.5 rounded">
-                          {new Date(order.createdAt).toLocaleDateString()}
+                          {new Date(order.createdAt).toLocaleDateString('en-GB')}
                         </span>
                       </div>
                       <div className="mt-3 space-y-1">
@@ -388,29 +480,53 @@ export default function OrdersPage() {
                       <tr 
                         key={order._id} 
                         onClick={() => navigate(`/orders/${order._id}`)}
-                        className="hover:bg-surface-container-low/50 transition-colors cursor-pointer"
+                        className="hover:bg-secondary-container/30 transition-colors cursor-pointer"
                       >
                         <td className="px-4 py-3 text-body-sm font-body-sm text-primary font-semibold">{order.orderNumber}</td>
                         <td className="px-4 py-3 text-body-sm font-body-sm text-on-surface">{order.customer?.name}</td>
                         <td className="px-4 py-3 text-body-sm font-body-sm text-on-surface-variant hidden md:table-cell">{order.customer?.phone}</td>
-                        <td className="px-4 py-3 text-body-sm font-body-sm text-on-surface-variant hidden lg:table-cell">{new Date(order.createdAt).toLocaleDateString()}</td>
+                        <td className="px-4 py-3 text-body-sm font-body-sm text-on-surface-variant hidden lg:table-cell">{new Date(order.createdAt).toLocaleDateString('en-GB')}</td>
                         <td className="px-4 py-3 text-body-sm font-body-sm text-on-surface font-semibold">₹{order.total}</td>
                         <td className="px-4 py-3">
-                          <select
-                            value={order.status}
-                            onClick={(e) => e.stopPropagation()}
-                            onChange={(e) => setPendingStatusChange({ id: order._id, status: e.target.value })}
-                            className={`status-select text-label-sm font-label-sm rounded-full px-3 py-1 border-0 outline-none cursor-pointer ${
-                              order.status === 'completed'
-                                ? 'bg-secondary-container text-on-secondary-container'
-                                : order.status === 'pending'
-                                ? 'bg-amber-100 text-amber-800'
-                                : 'bg-surface-container text-on-surface-variant'
-                            }`}
-                          >
-                            <option value="pending">Pending</option>
-                            <option value="completed">Completed</option>
-                          </select>
+                          <div className="hidden sm:block">
+                            <select
+                              value={order.status}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) => setPendingStatusChange({ id: order._id, status: e.target.value })}
+                              className={`status-select text-label-sm font-label-sm rounded-full px-3 py-1 border-0 outline-none cursor-pointer ${
+                                order.status === 'completed'
+                                  ? 'bg-secondary-container text-on-secondary-container'
+                                  : order.status === 'pending'
+                                  ? 'bg-amber-100 text-amber-800'
+                                  : 'bg-surface-container text-on-surface-variant'
+                              }`}
+                            >
+                              <option value="pending">Pending</option>
+                              <option value="completed">Completed</option>
+                            </select>
+                          </div>
+                          <div className="sm:hidden flex items-center justify-center">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const newStatus = order.status === 'completed' ? 'pending' : 'completed';
+                                setPendingStatusChange({ id: order._id, status: newStatus });
+                              }}
+                              className={`flex items-center justify-center w-8 h-8 rounded-full border-0 outline-none cursor-pointer transition-colors ${
+                                order.status === 'completed'
+                                  ? 'bg-secondary-container text-on-secondary-container'
+                                  : order.status === 'pending'
+                                  ? 'bg-amber-100 text-amber-800'
+                                  : 'bg-surface-container text-on-surface-variant'
+                              }`}
+                              title={order.status === 'completed' ? 'Change to Pending' : 'Change to Completed'}
+                            >
+                              <span className="material-symbols-outlined text-[18px]">
+                                {order.status === 'completed' ? 'check_circle' : 'hourglass_empty'}
+                              </span>
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}

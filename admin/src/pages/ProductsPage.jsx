@@ -6,6 +6,9 @@ import jsPDF from 'jspdf'
 import { useToast } from '../components/ToastContext'
 import ConfirmationModal from '../components/ConfirmationModal'
 
+const rawApiUrl = import.meta.env.VITE_API_URL;
+const API_URL = (rawApiUrl && rawApiUrl.trim() ? rawApiUrl.trim() : 'http://localhost:5000').replace(/\/$/, '');
+
 function ProductCard({ product, onToggle, categories = [] }) {
   const statusStr = product.isActive ? 'Live' : 'Hidden';
   const displayPrice = product.sizes && product.sizes.length > 0 ? `₹${product.sizes[0].price}` : 'N/A';
@@ -109,7 +112,7 @@ export default function ProductsPage() {
 
   const fetchProducts = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/products');
+      const res = await fetch(`${API_URL}/api/products`);
       const data = await res.json();
       if (data.success) {
         setProducts(data.data);
@@ -121,7 +124,7 @@ export default function ProductsPage() {
 
   const fetchCategories = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/categories');
+      const res = await fetch(`${API_URL}/api/categories`);
       const data = await res.json();
       if (data.success) {
         setCategories(data.data);
@@ -140,7 +143,7 @@ export default function ProductsPage() {
     const nameKey = newCategoryLabel.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
     try {
       const token = localStorage.getItem('adminToken') || '';
-      const res = await fetch('http://localhost:5000/api/categories', {
+      const res = await fetch(`${API_URL}/api/categories`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -174,7 +177,7 @@ export default function ProductsPage() {
   async function handleToggleStatus(id, currentStatus) {
     try {
       const token = localStorage.getItem('adminToken') || '';
-      const res = await fetch(`http://localhost:5000/api/products/${id}`, {
+      const res = await fetch(`${API_URL}/api/products/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ isActive: !currentStatus })
@@ -228,7 +231,7 @@ export default function ProductsPage() {
     showToast("Generating catalogue with images. Please wait...");
 
     const doc = new jsPDF();
-    const logoUrl = '/logo.png';
+    const logoUrl = '/logo_sg.png';
 
     // Preload logo and all images
     const logoBase64 = await preloadImage(logoUrl);
@@ -256,8 +259,8 @@ export default function ProductsPage() {
     for (let page = 0; page < totalPages; page++) {
       if (page > 0) doc.addPage();
 
-      // Draw Header with light color
-      doc.setFillColor(244, 247, 245);
+      // Draw Header with light color matching logo background
+      doc.setFillColor(245, 247, 245);
       doc.rect(0, 0, 210, 30, 'F');
 
       let logoW = 20;
@@ -282,11 +285,11 @@ export default function ProductsPage() {
       doc.setTextColor(21, 69, 57);
       doc.text("SG HERBALS", textX, 17);
 
-      // Tagline: "Handcrafter Soaps and Skin Care Products"
+      // Tagline: "Handcrafted Herbal Skin and Hair Care"
       doc.setFont("Times-Roman", "italic");
       doc.setFontSize(9);
       doc.setTextColor(74, 101, 79);
-      doc.text("Handcrafter Soaps and Skin Care Products", textX, 24);
+      doc.text("Handcrafted Herbal Skin and Hair Care", textX, 24);
 
       // Subhasree & Phone on the right
       doc.setFont("Times-Roman", "bold");
@@ -395,7 +398,7 @@ export default function ProductsPage() {
     <div className="flex h-screen overflow-hidden bg-surface">
       <AdminSidebar />
 
-      <div className="flex-1 flex flex-col overflow-auto md:ml-64 pb-16 md:pb-0">
+      <div className="flex-1 flex flex-col overflow-auto lg:ml-64 pb-16 lg:pb-0">
         <AdminTopBar pageTitle="Product Management" />
 
         <main className="flex-1 p-6 space-y-6 mt-2">
@@ -708,7 +711,7 @@ export default function ProductsPage() {
           setDeleteCatId(null);
           try {
             const token = localStorage.getItem('adminToken') || '';
-            const res = await fetch(`http://localhost:5000/api/categories/${catId}`, {
+            const res = await fetch(`${API_URL}/api/categories/${catId}`, {
               method: 'DELETE',
               headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -736,7 +739,7 @@ export default function ProductsPage() {
           setDeleteProductId(null);
           try {
             const token = localStorage.getItem('adminToken') || '';
-            const res = await fetch(`http://localhost:5000/api/products/${id}`, {
+            const res = await fetch(`${API_URL}/api/products/${id}`, {
               method: 'DELETE',
               headers: { 'Authorization': `Bearer ${token}` }
             });

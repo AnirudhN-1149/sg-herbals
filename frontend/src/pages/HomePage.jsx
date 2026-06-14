@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { serumImage, moisturizerImage } from '../data/products';
 import ProductCounter from '../components/ProductCounter';
 
 import './HomePage.css';
-import heroImage from "../pages/screen.png";
+import heroImage from '../assets/about_soap.png';
+import soapImage from '../assets/soap.png';
+import oilImage from '../assets/oil.png';
 
 function useReveal(deps = []) {
   useEffect(() => {
@@ -24,12 +25,15 @@ function useReveal(deps = []) {
   }, deps);
 }
 
+const rawApiUrl = process.env.REACT_APP_API_URL;
+const API_URL = (rawApiUrl && rawApiUrl.trim() ? rawApiUrl.trim() : 'http://localhost:5000').replace(/\/$/, '');
+
 export default function HomePage() {
   const [recommended, setRecommended] = useState([]);
   useReveal([recommended]);
 
   useEffect(() => {
-    fetch('http://localhost:5000/api/products?active=true&limit=4')
+    fetch(`${API_URL}/api/products?active=true&limit=4`)
       .then(res => res.json())
       .then(data => {
         setRecommended(data.data || []);
@@ -82,7 +86,7 @@ export default function HomePage() {
                   {/* Tags on Top Right border (popping out) */}
                   <div style={{ position: 'absolute', top: '-10px', right: '12px', display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-end', zIndex: 20 }}>
                     {product.isBestSeller && (
-                      <span className="font-label-sm" style={{ backgroundColor: '#e67e22', color: 'white', padding: '4px 12px', borderRadius: '20px', boxShadow: '0 4px 8px rgba(0, 0, 0, 0.15)', textTransform: 'uppercase', fontSize: '9px', fontWeight: '800', letterSpacing: '0.05em' }}>Bestseller</span>
+                      <span className="font-label-sm" style={{ backgroundColor: '#2b6cb0', color: 'white', padding: '4px 12px', borderRadius: '20px', boxShadow: '0 4px 8px rgba(0, 0, 0, 0.15)', textTransform: 'uppercase', fontSize: '9px', fontWeight: '800', letterSpacing: '0.05em' }}>Bestseller</span>
                     )}
                     {product.isNewArrival && (
                       <span className="font-label-sm" style={{ backgroundColor: '#27ae60', color: 'white', padding: '4px 12px', borderRadius: '20px', boxShadow: '0 4px 8px rgba(0, 0, 0, 0.15)', textTransform: 'uppercase', fontSize: '9px', fontWeight: '800', letterSpacing: '0.05em' }}>New Arrival</span>
@@ -119,22 +123,11 @@ export default function HomePage() {
         </div>
 
         <div className="home__zigzag">
-          {/* Row 1 */}
+          {/* Row 1: Soaps & Balms */}
           <div className="home__zz-row">
             <div className="home__zz-img-wrap reveal-left">
-              <img src={serumImage} alt="Herbal Oils" />
+              <img src={soapImage} alt="Herbal Soaps & Balms" />
             </div>
-            <div className="home__zz-text reveal-up">
-              <span className="font-label-md home__section-label">Nourishing Blends</span>
-              <h3 className="font-headline-lg home__zz-title">Herbal Oils</h3>
-              <p className="font-body-md home__zz-desc">
-                Pure herbal oils crafted to nourish, strengthen, and restore. From hair care to skin care, our cold-pressed oils bring the goodness of nature directly to you.
-              </p>
-              <Link to="/shop" className="home__zz-btn font-label-md">EXPLORE COLLECTION</Link>
-            </div>
-          </div>
-          {/* Row 2 */}
-          <div className="home__zz-row home__zz-row--reverse">
             <div className="home__zz-text reveal-up">
               <span className="font-label-md home__section-label">Daily Care</span>
               <h3 className="font-headline-lg home__zz-title">Herbal Soaps &amp; Balms</h3>
@@ -143,8 +136,19 @@ export default function HomePage() {
               </p>
               <Link to="/shop" className="home__zz-btn font-label-md">VIEW ALL</Link>
             </div>
+          </div>
+          {/* Row 2: Oils */}
+          <div className="home__zz-row home__zz-row--reverse">
+            <div className="home__zz-text reveal-up">
+              <span className="font-label-md home__section-label">Nourishing Blends</span>
+              <h3 className="font-headline-lg home__zz-title">Herbal Oils</h3>
+              <p className="font-body-md home__zz-desc">
+                Pure herbal oils crafted to nourish, strengthen, and restore. From hair care to skin care, our cold-pressed oils bring the goodness of nature directly to you.
+              </p>
+              <Link to="/shop" className="home__zz-btn font-label-md">EXPLORE COLLECTION</Link>
+            </div>
             <div className="home__zz-img-wrap reveal-right">
-              <img src={moisturizerImage} alt="Herbal Balms" />
+              <img src={oilImage} alt="Herbal Oils" />
             </div>
           </div>
         </div>

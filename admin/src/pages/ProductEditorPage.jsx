@@ -5,6 +5,9 @@ import AdminTopBar from '../components/AdminTopBar'
 import { useToast } from '../components/ToastContext'
 import ConfirmationModal from '../components/ConfirmationModal'
 
+const rawApiUrl = import.meta.env.VITE_API_URL;
+const API_URL = (rawApiUrl && rawApiUrl.trim() ? rawApiUrl.trim() : 'http://localhost:5000').replace(/\/$/, '');
+
 const ALL_TAGS = [
   { id: 'natural', label: 'Natural Ingredients', icon: 'eco' },
   { id: 'chemical-free', label: 'Chemical Free', icon: 'verified_user' },
@@ -17,16 +20,26 @@ const ALL_TAGS = [
 // Helper to parse product variant labels (e.g., "100g" -> { quantity: "100", unit: "g" })
 function parseSizeLabel(label) {
   if (!label) return { quantity: '', unit: 'g' };
-  if (label.toLowerCase().endsWith('ml')) {
+  const lowerLabel = label.toLowerCase();
+  if (lowerLabel.endsWith('ml')) {
     return { quantity: label.slice(0, -2).trim(), unit: 'mL' };
   }
-  if (label.toLowerCase().endsWith('pc.')) {
-    return { quantity: label.slice(0, -3).trim(), unit: 'pc.' };
+  if (lowerLabel.endsWith('piece(s)')) {
+    return { quantity: label.slice(0, -8).trim(), unit: 'piece(s)' };
   }
-  if (label.toLowerCase().endsWith('pc')) {
-    return { quantity: label.slice(0, -2).trim(), unit: 'pc.' };
+  if (lowerLabel.endsWith('pieces')) {
+    return { quantity: label.slice(0, -6).trim(), unit: 'piece(s)' };
   }
-  if (label.toLowerCase().endsWith('g')) {
+  if (lowerLabel.endsWith('piece')) {
+    return { quantity: label.slice(0, -5).trim(), unit: 'piece(s)' };
+  }
+  if (lowerLabel.endsWith('pc.')) {
+    return { quantity: label.slice(0, -3).trim(), unit: 'piece(s)' };
+  }
+  if (lowerLabel.endsWith('pc')) {
+    return { quantity: label.slice(0, -2).trim(), unit: 'piece(s)' };
+  }
+  if (lowerLabel.endsWith('g')) {
     return { quantity: label.slice(0, -1).trim(), unit: 'g' };
   }
   const match = label.match(/^(\d+)/);
@@ -35,7 +48,7 @@ function parseSizeLabel(label) {
     const unitPart = label.slice(quantity.length).trim().toLowerCase();
     let unit = 'g';
     if (unitPart === 'ml') unit = 'mL';
-    else if (unitPart.includes('pc')) unit = 'pc.';
+    else if (unitPart.includes('pc') || unitPart.includes('piece')) unit = 'piece(s)';
     return { quantity, unit };
   }
   return { quantity: label, unit: 'g' };
@@ -80,7 +93,7 @@ export default function ProductEditorPage() {
   useEffect(() => {
     if (!isNew) {
       setFetchLoading(true)
-      fetch(`http://localhost:5000/api/products/${id}`)
+      fetch(`${API_URL}/api/products/${id}`)
         .then(res => res.json())
         .then(data => {
           if (data.success) {
@@ -126,7 +139,7 @@ export default function ProductEditorPage() {
 
   const fetchCategories = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/categories');
+      const res = await fetch(`${API_URL}/api/categories`);
       const data = await res.json();
       if (data.success) {
         setCategories(data.data);
@@ -181,7 +194,7 @@ export default function ProductEditorPage() {
       const token = localStorage.getItem('adminToken') || ''
       const formData = new FormData()
       formData.append('image', file)
-      const res = await fetch('http://localhost:5000/api/upload/image', {
+      const res = await fetch(`${API_URL}/api/upload/image`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
         body: formData
@@ -246,7 +259,7 @@ export default function ProductEditorPage() {
         sizes: sizes
           .filter(s => s.quantity && s.price !== '')
           .map(s => {
-            const label = s.unit === 'pc.' ? `${s.quantity} pc.` : `${s.quantity}${s.unit}`;
+            const label = s.unit === 'piece(s)' ? `${s.quantity} piece(s)` : `${s.quantity}${s.unit}`;
             return { label, price: Number(s.price) || 0 };
           }),
         image: primaryImage,
@@ -256,8 +269,8 @@ export default function ProductEditorPage() {
 
       const method = isNew ? 'POST' : 'PUT'
       const url = isNew
-        ? 'http://localhost:5000/api/products'
-        : `http://localhost:5000/api/products/${id}`
+        ? `${API_URL}/api/products`
+        : `${API_URL}/api/products/${id}`
 
       const token = localStorage.getItem('adminToken') || ''
       const res = await fetch(url, {
@@ -312,7 +325,7 @@ export default function ProductEditorPage() {
     <div className="flex h-screen overflow-hidden bg-surface">
       <AdminSidebar />
 
-      <div className="flex-1 flex flex-col overflow-auto md:ml-64 pb-16 md:pb-0">
+      <div className="flex-1 flex flex-col overflow-auto lg:ml-64 pb-16 lg:pb-0">
         <AdminTopBar pageTitle="Product Editor" />
 
         <main className="flex-1 p-6 space-y-6 mt-2 pb-32">
@@ -547,7 +560,7 @@ export default function ProductEditorPage() {
                         >
                           <option value="g">g</option>
                           <option value="mL">mL</option>
-                          <option value="pc.">pc.</option>
+                          <option value="piece(s)">piece(s)</option>
                         </select>
                       </div>
 
@@ -701,7 +714,7 @@ export default function ProductEditorPage() {
         </main>
 
         {/* Bottom Action Bar */}
-        <div className="fixed bottom-16 md:bottom-0 left-0 md:left-64 right-0 bg-surface-container-lowest border-t border-outline-variant/20 px-6 py-4 flex items-center justify-between z-40">
+        <div className="fixed bottom-16 lg:bottom-0 left-0 lg:left-64 right-0 bg-surface-container-lowest border-t border-outline-variant/20 px-6 py-4 flex items-center justify-between z-40">
           <p className="text-label-sm font-label-sm text-on-surface-variant">
             {isNew ? 'New product draft' : `Editing: ${productName}`}
           </p>
@@ -730,7 +743,7 @@ export default function ProductEditorPage() {
           setLoading(true);
           try {
             const token = localStorage.getItem('adminToken') || '';
-            const res = await fetch(`http://localhost:5000/api/products/${id}`, {
+            const res = await fetch(`${API_URL}/api/products/${id}`, {
               method: 'DELETE',
               headers: { 'Authorization': `Bearer ${token}` }
             });

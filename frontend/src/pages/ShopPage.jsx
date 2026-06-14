@@ -5,6 +5,9 @@ import { faChevronLeft, faChevronRight, faChevronDown, faSearch } from '@fortawe
 import ProductCounter from '../components/ProductCounter';
 import './ShopPage.css';
 
+const rawApiUrl = process.env.REACT_APP_API_URL;
+const API_URL = (rawApiUrl && rawApiUrl.trim() ? rawApiUrl.trim() : 'http://localhost:5000').replace(/\/$/, '');
+
 export default function ShopPage() {
   const [products, setProducts] = useState([]);
   const [activeCategory, setActiveCategory] = useState('all');
@@ -18,9 +21,16 @@ export default function ShopPage() {
   // Track selected sizes for each product (maps productId -> sizeLabel)
   const [selectedSizes, setSelectedSizes] = useState({});
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const PRODUCTS_PER_PAGE = 12;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeCategory, sortBy, searchQuery]);
+
   useEffect(() => {
     // Fetch categories
-    fetch('http://localhost:5000/api/categories')
+    fetch(`${API_URL}/api/categories`)
       .then(res => res.json())
       .then(data => {
         if (data.success) {
@@ -31,7 +41,7 @@ export default function ShopPage() {
       .catch(err => console.error('Error fetching categories:', err));
 
     // Fetch products
-    fetch('http://localhost:5000/api/products?active=true')
+    fetch(`${API_URL}/api/products?active=true`)
       .then(res => res.json())
       .then(data => {
         setProducts(data.data || []);
@@ -72,6 +82,13 @@ export default function ShopPage() {
     
     return list;
   }, [products, activeCategory, sortBy, searchQuery]);
+
+  const paginatedProducts = useMemo(() => {
+    const startIndex = (currentPage - 1) * PRODUCTS_PER_PAGE;
+    return filtered.slice(startIndex, startIndex + PRODUCTS_PER_PAGE);
+  }, [filtered, currentPage]);
+
+  const totalPages = Math.ceil(filtered.length / PRODUCTS_PER_PAGE);
 
   return (
     <div className="shop">
@@ -137,7 +154,9 @@ export default function ShopPage() {
                 onChange={e => setActiveCategory(e.target.value)}
               >
                 {categories.map(cat => (
-                  <option key={cat.key} value={cat.key}>{cat.label}</option>
+                  <option key={cat.key} value={cat.key}>
+                    {cat.key === 'all' ? 'All Categories' : cat.label}
+                  </option>
                 ))}
               </select>
               <FontAwesomeIcon icon={faChevronDown} className="shop__sort-icon" />
@@ -165,7 +184,7 @@ export default function ShopPage() {
           <div style={{ textAlign: 'center', padding: '100px 0', color: 'var(--on-surface-variant)' }}>Loading products...</div>
         ) : (
           <div className="shop__grid">
-            {filtered.map(product => {
+            {paginatedProducts.map(product => {
               const currentSizeLabel = selectedSizes[product._id] || (product.sizes && product.sizes.length > 0 ? product.sizes[0].label : '1 unit');
               const currentSizeObj = product.sizes && product.sizes.length > 0
                 ? product.sizes.find(s => s.label === currentSizeLabel) || product.sizes[0]
@@ -187,7 +206,7 @@ export default function ShopPage() {
                   {/* Tags on Top Right border (popping out) */}
                   <div style={{ position: 'absolute', top: '-10px', right: '12px', display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-end', zIndex: 20 }}>
                     {product.isBestSeller && (
-                      <span className="font-label-sm" style={{ backgroundColor: '#e67e22', color: 'white', padding: '4px 12px', borderRadius: '20px', boxShadow: '0 4px 8px rgba(0, 0, 0, 0.15)', textTransform: 'uppercase', fontSize: '9px', fontWeight: '800', letterSpacing: '0.05em' }}>Bestseller</span>
+                      <span className="font-label-sm" style={{ backgroundColor: '#2b6cb0', color: 'white', padding: '4px 12px', borderRadius: '20px', boxShadow: '0 4px 8px rgba(0, 0, 0, 0.15)', textTransform: 'uppercase', fontSize: '9px', fontWeight: '800', letterSpacing: '0.05em' }}>Bestseller</span>
                     )}
                     {product.isNewArrival && (
                       <span className="font-label-sm" style={{ backgroundColor: '#27ae60', color: 'white', padding: '4px 12px', borderRadius: '20px', boxShadow: '0 4px 8px rgba(0, 0, 0, 0.15)', textTransform: 'uppercase', fontSize: '9px', fontWeight: '800', letterSpacing: '0.05em' }}>New Arrival</span>
@@ -238,15 +257,38 @@ export default function ShopPage() {
         )}
 
         {/* Pagination */}
-        <div className="shop__pagination">
-          <button className="shop__page-btn">
-            <FontAwesomeIcon icon={faChevronLeft} />
-          </button>
-          <span className="shop__page-num shop__page-num--active font-label-md">1</span>
-          <button className="shop__page-btn">
-            <FontAwesomeIcon icon={faChevronRight} />
-          </button>
-        </div>
+        {totalPages >= 2 && (
+          <div className="shop__pagination">
+            <button
+              className="shop__page-btn"
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              style={{ opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
+            >
+              <FontAwesomeIcon icon={faChevronLeft} />
+            </button>
+            {Array.from({ length: totalPages }, (_, index) => {
+              const pageNum = index + 1;
+              return (
+                <button
+                  key={pageNum}
+                  onClick={() => setCurrentPage(pageNum)}
+                  className={`shop__page-num ${currentPage === pageNum ? 'shop__page-num--active' : ''} font-label-md`}
+                >
+                  {pageNum}
+                </button>
+              );
+            })}
+            <button
+              className="shop__page-btn"
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              style={{ opacity: currentPage === totalPages ? 0.5 : 1, cursor: currentPage === totalPages ? 'not-allowed' : 'pointer' }}
+            >
+              <FontAwesomeIcon icon={faChevronRight} />
+            </button>
+          </div>
+        )}
       </section>
     </div>
   );

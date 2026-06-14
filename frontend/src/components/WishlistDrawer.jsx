@@ -6,7 +6,7 @@ import { useWishlist } from '../context/WishlistContext';
 import { useToast } from '../context/ToastContext';
 import './WishlistDrawer.css';
 
-const LOGO = "https://lh3.googleusercontent.com/aida-public/AB6AXuDQIhINItXX0r6qrws7vPHRf-Xa6Rv7pIXmz-ETDZD02S7CoUw_ZEH2mRyQfohtEiPLB0X6RQb8OUWHoOv5OCQK7mbrSo64l1sfLZvHkgdxS18CbFbRNeuYdwKbnYU9I8VrLqyTxtvLNLOlQ_mmXv2AV0QU0_3vt1FuPQgl26usQUv1zuj7sGeU1vpZW6CtIiVGYaBs9KrtcKQas8NbQmwUiEinGVFKDG-1cgmHYRu8dg2t6ZhM5JkCuIgzelQmsj7pYEdeec327weG";
+const LOGO = "/logo.png";
 
 export default function WishlistDrawer() {
   const { wishlistItems, isDrawerOpen, setIsDrawerOpen, updateQuantity, removeFromWishlist, changeItemSize, subtotal } = useWishlist();
@@ -51,7 +51,6 @@ export default function WishlistDrawer() {
           ) : (
             wishlistItems.map(item => {
               const stockLimit = item.stock !== undefined && item.stock !== null ? item.stock : 10;
-              const isPlusDisabled = item.quantity >= stockLimit;
               
               return (
                 <div key={item.cartId || item.id} className="drawer__item">
@@ -97,13 +96,11 @@ export default function WishlistDrawer() {
                         <button 
                           onClick={() => {
                             if (item.quantity >= stockLimit) {
-                              showToast(`Cannot add more items. Only ${stockLimit} units available.`, 'error');
+                              showToast('No more of this product can be added. Stock limit reached.', 'info');
                               return;
                             }
                             updateQuantity(item.cartId || item.id, item.quantity + 1);
                           }}
-                          disabled={isPlusDisabled}
-                          style={isPlusDisabled ? { opacity: 0.3, cursor: 'not-allowed' } : {}}
                         >
                           <FontAwesomeIcon icon={faPlus} />
                         </button>

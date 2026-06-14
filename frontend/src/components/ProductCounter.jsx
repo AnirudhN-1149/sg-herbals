@@ -15,14 +15,13 @@ export default function ProductCounter({ product, variant = 'default' }) {
 
   const stockLimit = product.stock !== undefined && product.stock !== null ? product.stock : 10;
   const isOutOfStock = stockLimit <= 0;
-  const isPlusDisabled = quantity >= stockLimit;
 
   const handleAdd = (e) => {
     e.preventDefault();
     e.stopPropagation();
 
     if (quantity >= stockLimit) {
-      showToast(`Cannot add more items. Only ${stockLimit} units available.`, 'error');
+      showToast('No more of this product can be added. Stock limit reached.', 'info');
       return;
     }
 
@@ -70,9 +69,7 @@ export default function ProductCounter({ product, variant = 'default' }) {
       <span className="pc-counter__qty">{quantity}</span>
       <button 
         onClick={handleAdd} 
-        disabled={isPlusDisabled}
-        className={`pc-counter__btn pc-counter__btn--plus ${isPlusDisabled ? 'pc-counter__btn--disabled' : ''}`} 
-        style={isPlusDisabled ? { opacity: 0.3, cursor: 'not-allowed' } : {}}
+        className="pc-counter__btn pc-counter__btn--plus"
         aria-label="Increase quantity"
       >
         <FontAwesomeIcon icon={faPlus} style={{ fontSize: variant === 'large' ? '14px' : '11px' }} />

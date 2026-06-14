@@ -82,12 +82,18 @@
   color: white;
   border-color: var(--primary);
 }
+.shop__filter-btn--active:hover {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+  cursor: default;
+}
 .shop__sort-wrap {
   position: relative;
-  min-width: 200px;
+  min-width: 180px;
 }
 .shop__sort {
-  width: 100%;
+  width: 180px;
   padding: 10px 40px 10px 16px;
   border: 1.5px solid rgba(21, 69, 57, 0.2);
   border-radius: 10px;
@@ -306,6 +312,8 @@
   .shop__filters-mobile {
     display: flex;
     width: 100%;
+    max-width: 460px;
+    margin: 0 auto;
     align-items: center;
     gap: 12px;
     justify-content: space-between;

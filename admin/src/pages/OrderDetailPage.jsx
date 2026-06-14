@@ -5,6 +5,10 @@ import AdminTopBar from '../components/AdminTopBar'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import ConfirmationModal from '../components/ConfirmationModal'
+import { useToast } from '../components/ToastContext'
+
+const rawApiUrl = import.meta.env.VITE_API_URL;
+const API_URL = (rawApiUrl && rawApiUrl.trim() ? rawApiUrl.trim() : 'http://localhost:5000').replace(/\/$/, '');
 
 function CopyButton({ text }) {
   const [copied, setCopied] = useState(false)
@@ -39,7 +43,7 @@ function StatusSelect({ orderId, currentStatus, onUpdate }) {
     setSaving(true)
     try {
       const token = localStorage.getItem('adminToken') || ''
-      const res = await fetch(`http://localhost:5000/api/orders/${orderId}/status`, {
+      const res = await fetch(`${API_URL}/api/orders/${orderId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ status: newStatus })
@@ -89,13 +93,13 @@ function StatusSelect({ orderId, currentStatus, onUpdate }) {
 export default function OrderDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { showToast } = useToast()
   const [order, setOrder] = useState(null)
   const [loading, setLoading] = useState(true)
   const [editingShipping, setEditingShipping] = useState(false)
   const [shippingInput, setShippingInput] = useState(0)
   const [savingShipping, setSavingShipping] = useState(false)
-  const [copyOrderMsg, setCopyOrderMsg] = useState('')
-  const [copyAddrMsg, setCopyAddrMsg] = useState('')
+  const [copyAllMsg, setCopyAllMsg] = useState('')
   const [showDeleteModal, setShowDeleteModal] = useState(false)
 
   useEffect(() => {
@@ -105,7 +109,7 @@ export default function OrderDetailPage() {
   async function fetchOrder() {
     try {
       const token = localStorage.getItem('adminToken') || ''
-      const res = await fetch(`http://localhost:5000/api/orders/${id}`, {
+      const res = await fetch(`${API_URL}/api/orders/${id}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       if (res.ok) {
@@ -130,7 +134,7 @@ export default function OrderDetailPage() {
       const token = localStorage.getItem('adminToken') || ''
       const newFee = Number(shippingInput) || 0
       const newTotal = (order.subtotal || 0) + newFee
-      await fetch(`http://localhost:5000/api/orders/${id}/status`, {
+      await fetch(`${API_URL}/api/orders/${id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ shippingFee: newFee, total: newTotal })
@@ -155,86 +159,144 @@ export default function OrderDetailPage() {
       lines.push('')
     })
     lines.push(`*Shipping:* *₹${o.shippingFee || 0}*`)
-    lines.push('────────────────────')
+    lines.push('───────────────')
     lines.push(`*Grand Total:* *₹${o.total}*`)
-    lines.push('────────────────────')
+    lines.push('───────────────')
     return lines.join('\n')
   }
 
-  function buildAddressCopyText(o) {
+
+
+  function buildFullCopyText(o) {
+    const singleLineAddress = o.customer?.address 
+      ? o.customer.address.replace(/\r?\n|\r/g, ' ').trim() 
+      : '-';
+
+    const orderItemsText = buildOrderCopyText(o);
+
     return [
-      `*Name:* ${o.customer?.name}`,
-      `*Phone:* ${o.customer?.phone}`,
-      o.customer?.address ? `*Address:* ${o.customer.address}` : '',
-      o.customer?.pincode ? `*Pincode:* ${o.customer.pincode}` : ''
-    ].filter(Boolean).join('\n')
+      `*Name*: ${o.customer?.name || '-'}`,
+      `*Phone*: ${o.customer?.phone || '-'}`,
+      '',
+      `*Address*:`,
+      `${singleLineAddress}`,
+      `*Pincode*: ${o.customer?.pincode || '-'}`,
+      '',
+      orderItemsText
+    ].join('\n');
   }
 
-  function handleCopyOrder() {
+  function handleCopyAll() {
     if (!order) return
-    navigator.clipboard.writeText(buildOrderCopyText(order)).then(() => {
-      setCopyOrderMsg('Copied!')
-      setTimeout(() => setCopyOrderMsg(''), 2000)
+    navigator.clipboard.writeText(buildFullCopyText(order)).then(() => {
+      setCopyAllMsg('Copied!')
+      setTimeout(() => setCopyAllMsg(''), 2000)
     })
   }
 
-  function handleCopyAddr() {
-    if (!order) return
-    navigator.clipboard.writeText(buildAddressCopyText(order)).then(() => {
-      setCopyAddrMsg('Copied!')
-      setTimeout(() => setCopyAddrMsg(''), 2000)
-    })
-  }
+  const preloadImage = (url) => {
+    return new Promise((resolve) => {
+      if (!url) return resolve(null);
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.src = url;
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.naturalWidth;
+          canvas.height = img.naturalHeight;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          resolve({
+            dataUrl: canvas.toDataURL('image/jpeg'),
+            width: img.naturalWidth,
+            height: img.naturalHeight
+          });
+        } catch (err) {
+          resolve(null);
+        }
+      };
+      img.onerror = () => resolve(null);
+    });
+  };
 
-  function downloadPDF() {
+  async function downloadPDF() {
     if (!order) return
+    showToast && showToast("Generating invoice. Please wait...", "info");
     const doc = new jsPDF()
+    const logoUrl = '/logo_sg.png';
+    const logoBase64 = await preloadImage(logoUrl);
 
-    // Header Banner
-    doc.setFillColor(21, 69, 57)
-    doc.rect(0, 0, 210, 25, 'F')
+    // Draw Header with light color matching logo background
+    doc.setFillColor(245, 247, 245);
+    doc.rect(0, 0, 210, 30, 'F');
 
-    // Header Title
-    doc.setFont("helvetica", "bold")
-    doc.setFontSize(18)
-    doc.setTextColor(255, 255, 255)
-    doc.text("SG HERBALS", 14, 16)
+    let logoW = 20;
+    // Draw Logo
+    if (logoBase64 && logoBase64.dataUrl) {
+      const logoRatio = logoBase64.width / logoBase64.height;
+      let logoH = 20;
+      if (logoRatio > 25/20) {
+        logoW = 25;
+        logoH = 25 / logoRatio;
+      } else {
+        logoW = 20 * logoRatio;
+      }
+      const logoY = 5 + (20 - logoH) / 2;
+      doc.addImage(logoBase64.dataUrl, 'JPEG', 14, logoY, logoW, logoH);
+    }
 
-    doc.setFont("helvetica", "normal")
-    doc.setFontSize(9)
-    doc.setTextColor(231, 216, 201)
-    doc.text("Premium Botanical Products", 14, 21)
+    // Brand Info
+    const textX = 14 + logoW + 4;
+    doc.setFont("Times-Roman", "bold");
+    doc.setFontSize(22);
+    doc.setTextColor(21, 69, 57);
+    doc.text("SG HERBALS", textX, 17);
 
-    // Invoice label on the right
-    doc.setFont("helvetica", "bold")
-    doc.setFontSize(14)
-    doc.setTextColor(255, 255, 255)
-    doc.text("INVOICE / RECEIPT", 140, 16)
+    // Tagline: "Handcrafted Herbal Skin and Hair Care"
+    doc.setFont("Times-Roman", "italic");
+    doc.setFontSize(9);
+    doc.setTextColor(74, 101, 79);
+    doc.text("Handcrafted Herbal Skin and Hair Care", textX, 24);
+
+    // Subhasree & Phone on the right
+    doc.setFont("Times-Roman", "bold");
+    doc.setFontSize(11.5);
+    doc.setTextColor(21, 69, 57);
+    doc.text("Subhasree Giridhari", 145, 13);
+    doc.setFontSize(11);
+    doc.text("Phone: 9940184032", 145, 19);
 
     // Reset text color for body
     doc.setTextColor(33, 33, 33)
 
-    // Invoice Metadata (Two Columns)
+    // Centered Bolder Heading in the body top as the first line
+    doc.setFont("Helvetica", "bold");
+    doc.setFontSize(18);
+    doc.setTextColor(21, 69, 57);
+    doc.text("INVOICE / RECEIPT", 105, 45, { align: "center" });
+
+    // Invoice Metadata (Two Columns) - shifted down to Y = 57
     // Left: Customer details
     doc.setFont("helvetica", "bold")
     doc.setFontSize(10)
-    doc.text("BILLED TO:", 14, 38)
+    doc.setTextColor(33, 33, 33)
+    doc.text("BILLED TO:", 14, 57)
     doc.setFont("helvetica", "normal")
-    doc.text(order.customer?.name || '-', 14, 44)
-    doc.text(`Phone: ${order.customer?.phone || '-'}`, 14, 49)
+    doc.text(`Name: ${order.customer?.name || '-'}`, 14, 63)
+    doc.text(`Phone: ${order.customer?.phone || '-'}`, 14, 68)
 
     // Right: Invoice Details
     doc.setFont("helvetica", "bold")
-    doc.text("INVOICE DETAILS:", 130, 38)
+    doc.text("INVOICE DETAILS:", 130, 57)
     doc.setFont("helvetica", "normal")
-    doc.text(`Invoice No: ${order.orderNumber}`, 130, 44)
-    doc.text(`Date: ${new Date(order.createdAt).toLocaleDateString('en-IN')}`, 130, 49)
-    doc.text(`Status: ${order.status.toUpperCase()}`, 130, 54)
+    doc.text(`Invoice No: ${order.orderNumber}`, 130, 63)
+    doc.text(`Date: ${new Date(order.createdAt).toLocaleDateString('en-IN')}`, 130, 68)
 
-    // Divider line
+    // Divider line - shifted down to Y = 74
     doc.setDrawColor(21, 69, 57)
     doc.setLineWidth(0.5)
-    doc.line(14, 60, 196, 60)
+    doc.line(14, 74, 196, 74)
 
     const tableData = order.items.map((item, i) => [
       i + 1,
@@ -245,8 +307,9 @@ export default function OrderDetailPage() {
       `Rs. ${item.price * item.quantity}`
     ])
 
+    const startTableY = 79;
     autoTable(doc, {
-      startY: 65,
+      startY: startTableY,
       head: [['#', 'Item Description', 'Size', 'Qty', 'Unit Cost', 'Subtotal']],
       body: tableData,
       theme: 'striped',
@@ -275,36 +338,39 @@ export default function OrderDetailPage() {
       }
     })
 
-    const finalY = doc.lastAutoTable.finalY || 65
+    const finalY = doc.lastAutoTable.finalY || startTableY;
 
-    // Calculation Summary Box
+    // Calculation Summary Box - Enhanced Styling
     doc.setFillColor(245, 248, 246)
-    doc.roundedRect(125, finalY + 8, 71, 32, 2, 2, 'F')
+    doc.roundedRect(121, finalY + 8, 75, 34, 2, 2, 'F')
 
     doc.setFont("helvetica", "normal")
     doc.setFontSize(9.5)
-    doc.text(`Subtotal:`, 130, finalY + 15)
-    doc.text(`Rs. ${order.subtotal}`, 170, finalY + 15)
+    doc.setTextColor(80, 80, 80)
+    doc.text(`Subtotal:`, 125, finalY + 15)
+    doc.text(`Rs. ${order.subtotal}`, 168, finalY + 15)
 
-    doc.text(`Shipping:`, 130, finalY + 22)
-    doc.text(`Rs. ${order.shippingFee || 0}`, 170, finalY + 22)
+    doc.text(`Shipping:`, 125, finalY + 22)
+    doc.text(`Rs. ${order.shippingFee || 0}`, 168, finalY + 22)
 
-    // Total Line
-    doc.setDrawColor(21, 69, 57)
-    doc.setLineWidth(0.3)
-    doc.line(130, finalY + 25, 190, finalY + 25)
+    // Total Highlight row background
+    doc.setFillColor(230, 240, 235)
+    doc.rect(121, finalY + 26, 75, 12, 'F')
 
     doc.setFont("helvetica", "bold")
-    doc.text(`Total:`, 130, finalY + 32)
-    doc.text(`Rs. ${order.total}`, 170, finalY + 32)
+    doc.setFontSize(11.5)
+    doc.setTextColor(21, 69, 57) // Botanical Green
+    doc.text(`Total:`, 125, finalY + 34)
+    doc.text(`Rs. ${order.total}`, 168, finalY + 34)
 
     // Delivery Address
     doc.setFont("helvetica", "bold")
     doc.setFontSize(10)
+    doc.setTextColor(33, 33, 33)
     doc.text("DELIVERY ADDRESS:", 14, finalY + 15)
     doc.setFont("helvetica", "normal")
     doc.setFontSize(9)
-    const splitAddress = doc.splitTextToSize(`${order.customer?.address || ''}, Pin: ${order.customer?.pincode || ''}`, 90)
+    const splitAddress = doc.splitTextToSize(`Address: ${order.customer?.address || ''}\nPincode: ${order.customer?.pincode || ''}`, 90)
     doc.text(splitAddress, 14, finalY + 21)
 
     // Footer message
@@ -323,7 +389,7 @@ export default function OrderDetailPage() {
   return (
     <div className="flex h-screen overflow-hidden bg-surface">
       <AdminSidebar />
-      <div className="flex-1 flex flex-col overflow-auto md:ml-64 pb-16 md:pb-0">
+      <div className="flex-1 flex flex-col overflow-auto lg:ml-64 pb-16 lg:pb-0">
         <AdminTopBar pageTitle="Order Details" />
         <main className="flex-1 p-4 md:p-6 space-y-5">
 
@@ -338,13 +404,26 @@ export default function OrderDetailPage() {
             <div>
               <h2 className="text-headline-md font-headline-md text-on-surface">Order {order.orderNumber}</h2>
               <p className="text-body-sm text-on-surface-variant mt-1">
-                {new Date(order.createdAt).toLocaleString('en-IN', { dateStyle: 'long', timeStyle: 'short' })}
+                {new Date(order.createdAt).toLocaleDateString('en-GB')} {new Date(order.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: true })}
               </p>
             </div>
-            <div className="flex gap-2 flex-wrap">
+             <div className="flex gap-2 flex-wrap">
               <button onClick={downloadPDF} className="flex items-center gap-2 px-4 py-2 bg-surface-container text-on-surface-variant rounded-lg text-label-md hover:bg-surface-container-high transition-colors border border-outline-variant/30">
                 <span className="material-symbols-outlined text-[18px]">download</span>
                 Download Invoice
+              </button>
+              <button 
+                onClick={handleCopyAll}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-label-md transition-colors border ${
+                  copyAllMsg 
+                    ? 'bg-secondary-container text-on-secondary-container border-secondary-container' 
+                    : 'bg-surface-container text-on-surface-variant border-outline-variant/30 hover:bg-surface-container-high'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[18px]">
+                  {copyAllMsg ? 'check' : 'content_copy'}
+                </span>
+                {copyAllMsg || 'Copy Order Details'}
               </button>
               <button onClick={handleDelete} className="flex items-center gap-2 px-4 py-2 bg-error-container/30 text-error rounded-lg text-label-md hover:bg-error-container transition-colors">
                 <span className="material-symbols-outlined text-[18px]">delete</span>
@@ -370,36 +449,40 @@ export default function OrderDetailPage() {
 
             {/* Customer Card */}
             <div className="bg-surface-container-lowest rounded-xl p-5 border border-outline-variant/20 airy-shadow-low">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="material-symbols-outlined text-[18px] text-on-surface-variant">person</span>
-                <h3 className="text-label-md font-label-md text-on-surface">Customer</h3>
+              <div className="flex items-center gap-2 mb-4 pb-2 border-b border-outline-variant/10">
+                <span className="material-symbols-outlined text-[18px] text-primary">person</span>
+                <h3 className="text-label-md font-bold text-primary uppercase tracking-wider">Customer Details</h3>
               </div>
-              <p className="text-body-md font-semibold text-on-surface">{order.customer?.name}</p>
-              <p className="text-body-sm text-on-surface-variant mt-0.5">{order.customer?.phone}</p>
-              <CopyButton text={order.customer?.phone || ''} />
+              <div className="space-y-3">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-body-sm font-bold text-on-surface-variant min-w-[50px]">Name:</span>
+                  <span className="text-body-sm font-semibold text-on-surface">{order.customer?.name || '-'}</span>
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-body-sm font-bold text-on-surface-variant min-w-[50px]">Phone:</span>
+                  <span className="text-body-sm font-medium text-on-surface">{order.customer?.phone || '-'}</span>
+                </div>
+              </div>
             </div>
 
             {/* Address Card */}
             <div className="bg-surface-container-lowest rounded-xl p-5 border border-outline-variant/20 airy-shadow-low">
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-4 pb-2 border-b border-outline-variant/10">
                 <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[18px] text-on-surface-variant">location_on</span>
-                  <h3 className="text-label-md font-label-md text-on-surface">Delivery Address</h3>
+                  <span className="material-symbols-outlined text-[18px] text-primary">location_on</span>
+                  <h3 className="text-label-md font-bold text-primary uppercase tracking-wider">Delivery Address</h3>
                 </div>
               </div>
-              <p className="text-body-sm text-on-surface leading-relaxed">
-                {order.customer?.address}
-                {order.customer?.pincode && <><br /><span className="text-on-surface-variant">Pincode: {order.customer.pincode}</span></>}
-              </p>
-              <button
-                onClick={handleCopyAddr}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-label-sm transition-all mt-2 ${
-                  copyAddrMsg ? 'bg-secondary-container text-on-secondary-container' : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'
-                }`}
-              >
-                <span className="material-symbols-outlined text-[14px]">{copyAddrMsg ? 'check' : 'content_copy'}</span>
-                {copyAddrMsg || 'Copy'}
-              </button>
+              <div className="space-y-3">
+                <div className="flex flex-col gap-1">
+                  <span className="text-body-sm font-bold text-on-surface-variant">Address:</span>
+                  <p className="text-body-sm text-on-surface leading-relaxed pl-2 border-l-2 border-primary/20">{order.customer?.address || '-'}</p>
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-body-sm font-bold text-on-surface-variant">Pincode:</span>
+                  <span className="text-body-sm font-medium text-on-surface">{order.customer?.pincode || '-'}</span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -407,15 +490,6 @@ export default function OrderDetailPage() {
           <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/20 airy-shadow-low overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-outline-variant/20">
               <h3 className="text-headline-sm font-headline-sm text-on-surface">Order Items</h3>
-              <button
-                onClick={handleCopyOrder}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-label-sm transition-all ${
-                  copyOrderMsg ? 'bg-secondary-container text-on-secondary-container' : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'
-                }`}
-              >
-                <span className="material-symbols-outlined text-[16px]">{copyOrderMsg ? 'check' : 'content_copy'}</span>
-                {copyOrderMsg || 'Copy'}
-              </button>
             </div>
 
             <div className="overflow-x-auto">
@@ -432,7 +506,7 @@ export default function OrderDetailPage() {
                 </thead>
                 <tbody className="divide-y divide-outline-variant/10">
                   {order.items.map((item, idx) => (
-                    <tr key={idx} className="hover:bg-surface-container-low/30 transition-colors">
+                    <tr key={idx} className="hover:bg-secondary-container/30 transition-colors">
                       <td className="px-5 py-4 text-label-sm text-on-surface-variant">{idx + 1}</td>
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-3">
@@ -510,7 +584,7 @@ export default function OrderDetailPage() {
           setShowDeleteModal(false);
           try {
             const token = localStorage.getItem('adminToken') || ''
-            const res = await fetch(`http://localhost:5000/api/orders/${id}`, {
+            const res = await fetch(`${API_URL}/api/orders/${id}`, {
               method: 'DELETE',
               headers: { 'Authorization': `Bearer ${token}` }
             })
