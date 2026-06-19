@@ -5,7 +5,8 @@ import {
   faStar, faLeaf, faShieldAlt,
   faArrowLeft, faChevronDown, faCheck,
   faSpa,
-  faHand, faTree, faHeart
+  faHand, faTree, faHeart,
+  faChevronLeft, faChevronRight
 } from '@fortawesome/free-solid-svg-icons';
 import ProductCounter from '../components/ProductCounter';
 
@@ -33,6 +34,12 @@ export default function ProductDetailPage() {
   const [selectedImg, setSelectedImg] = useState(0);
   const [selectedSize, setSelectedSize] = useState(0);
   const [openSection, setOpenSection] = useState(null);
+
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
+  const [dragStart, setDragStart] = useState(null);
+  const [dragEnd, setDragEnd] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -73,6 +80,71 @@ export default function ProductDetailPage() {
 
   const sizes = product.sizes && product.sizes.length > 0 ? product.sizes : [{ label: 'Standard', price: 0 }];
   const images = product.images && product.images.length > 0 ? product.images : [product.image];
+
+  const handleNext = () => {
+    if (selectedImg < images.length - 1) {
+      setSelectedImg(selectedImg + 1);
+    }
+  };
+
+  const handlePrev = () => {
+    if (selectedImg > 0) {
+      setSelectedImg(selectedImg - 1);
+    }
+  };
+
+  const minSwipeDistance = 50;
+
+  const handleTouchStart = (e) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchMove = (e) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+    if (isLeftSwipe) {
+      handleNext();
+    } else if (isRightSwipe) {
+      handlePrev();
+    }
+  };
+
+  const handleMouseDown = (e) => {
+    setDragEnd(null);
+    setDragStart(e.clientX);
+    setIsDragging(true);
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging) return;
+    setDragEnd(e.clientX);
+  };
+
+  const handleMouseUp = () => {
+    if (!isDragging) return;
+    if (dragStart && dragEnd) {
+      const distance = dragStart - dragEnd;
+      const isLeftSwipe = distance > minSwipeDistance;
+      const isRightSwipe = distance < -minSwipeDistance;
+      if (isLeftSwipe) {
+        handleNext();
+      } else if (isRightSwipe) {
+        handlePrev();
+      }
+    }
+    setIsDragging(false);
+  };
+
+  const handleMouseLeave = () => {
+    setIsDragging(false);
+  };
   
   const cartProduct = {
     id: product._id,
@@ -107,13 +179,69 @@ export default function ProductDetailPage() {
                 className={`pdp__thumb ${selectedImg === i ? 'pdp__thumb--active' : ''}`}
                 onClick={() => setSelectedImg(i)}
               >
-                <img src={img} alt={`${product.name} ${i + 1}`} />
+                <img src={img} alt={`${product.name} ${i + 1}`} onDragStart={e => e.preventDefault()} />
               </button>
             ))}
           </div>
-          <div className="pdp__main-img">
+          <div 
+            className="pdp__main-img"
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseLeave}
+            style={{ cursor: isDragging ? 'grabbing' : 'grab', userSelect: 'none' }}
+          >
             <div className="pdp__img-count font-label-sm">{selectedImg + 1} / {images.length}</div>
-            <img src={images[selectedImg] || product.image} alt={product.name} />
+            
+            <div 
+              className="pdp__img-track"
+              style={{
+                display: 'flex',
+                height: '100%',
+                transition: 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+                transform: `translateX(-${selectedImg * 100}%)`
+              }}
+            >
+              {images.map((img, i) => (
+                <img 
+                  key={i} 
+                  src={img || product.image} 
+                  alt={`${product.name} ${i + 1}`} 
+                  onDragStart={e => e.preventDefault()}
+                  style={{
+                    flex: '0 0 100%',
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    pointerEvents: 'none'
+                  }}
+                />
+              ))}
+            </div>
+
+            {images.length > 1 && (
+              <>
+                <button 
+                  className="pdp__nav-btn pdp__nav-btn--left" 
+                  onClick={handlePrev}
+                  disabled={selectedImg === 0}
+                  aria-label="Previous image"
+                >
+                  <FontAwesomeIcon icon={faChevronLeft} />
+                </button>
+                <button 
+                  className="pdp__nav-btn pdp__nav-btn--right" 
+                  onClick={handleNext}
+                  disabled={selectedImg === images.length - 1}
+                  aria-label="Next image"
+                >
+                  <FontAwesomeIcon icon={faChevronRight} />
+                </button>
+              </>
+            )}
           </div>
         </div>
 
